@@ -8,8 +8,8 @@ const openHeadless = async (options) => {
   return page
 }
 
-const getLinInList = async (locator, options) => {
-  return locator.getByRole('listitem').getByRole('link', options).all();
+const getLinInList = async (locator, regexp) => {
+  return locator.getByRole('listitem').getByRole('link', {name: regexp}).all();
 }
 
 
@@ -19,10 +19,10 @@ const main = async () => {
 
   const page = await openHeadless()
   await page.goto(KOR_ACTOR_URL)
-  const personsLocators = await getLinInList(page, {name: PERSON_LIST_REGEXP});
+  const personsLocators = await getLinInList(page, PERSON_LIST_REGEXP);
   console.log('1. number of persons:', personsLocators.length);
   for(const person of personsLocators){
-    console.log('name:', await person.innerText())
+    console.log('name:', await person.allInnerTexts())
   }
 }
 
