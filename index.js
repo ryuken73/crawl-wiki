@@ -1,11 +1,12 @@
 const { chromium } = require('playwright');
+const { expect } = require('@playwright/test');
 
 const HEADERS = /^(출생|국적|본관|신체|학력|가족|병력|데뷔|소속사|링크)$/
 const isTableHeader = text => {
   return HEADERS.test(text);
-}``
+}
 
-const openHeadless = async (options) => {
+const openHeadlessBrowser = async (options) => {
   const browser = await chromium.launchPersistentContext('', {
     headless: false
   })
@@ -14,7 +15,8 @@ const openHeadless = async (options) => {
 }
 
 const getLinInList = async (locator, regexp) => {
-  return locator.getByRole('listitem').getByRole('link', {name: regexp}).all();
+  // return locator.getByRole('listitem').getByRole('link', {name: regexp}).all();
+  return locator.getByRole('listitem').filter({hasText: regexp}).all();
 }
 
 const getImage = async (page, name) => {
@@ -26,16 +28,35 @@ const getImage = async (page, name) => {
   return { name, imgPath };
 };
 
+const sleep = (time) => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      resolve(true);
+    }, time)
+  }) 
+}
 const main = async () => {
   const KOR_ACTOR_URL = 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD';
   const PERSON_LIST_REGEXP = /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/;
 
-  const page = await openHeadless()
+  const page = await openHeadlessBrowser()
   await page.goto(KOR_ACTOR_URL)
   const personsLocators = await getLinInList(page, PERSON_LIST_REGEXP);
   console.log('1. number of persons:', personsLocators.length);
   for(const person of personsLocators){
-    console.log('name:', await person.allInnerTexts())
+    const fullName = await person.textContent();
+    const link = await person.getByRole('link');
+    const count = await person.getByRole('link').count();
+    console.log('name:', fullName, count);
+    const firstLink = count > 1 ? link.first(): link;
+    const firstName = count > 1 ? await link.first().textContent():fullName;
+    await firstLink.click();
+    const result = await getImage(page, firstName);
+    console.log(result);
+    await page.goBack({waitUntil: 'domcontentloaded'});
+    const x = await expect(page.getByRole('heading', {name: '배우/한국'}).getByRole('link')).toBeAttached();
+    console.log('person attached:',person, x);
+    // await sleep(2000)
   }
 
 
