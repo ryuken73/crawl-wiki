@@ -44,6 +44,15 @@ const getLinkNText = async locator => {
   const clickableLink = count > 1 ? link.first(): link;
   const clickableText = count > 1 ? await link.first().textContent(): fullName;
   return {clickableLink, clickableText}
+}
+const waitForPersonTable = async (page, name) => {
+  const exactNameHeading = page.getByRole('heading', {name});
+  const someChars = new RegExp(name.substr(1,3))
+  const regexpNameHeading = page.getByRole('heading', {name: someChars}).first();
+  await expect(exactNameHeading.or(regexpNameHeading).getByRole('link')).toBeAttached();
+}
+const waitForInitialPage = async (page, name) => {
+  await expect(page.getByRole('heading', {name}).getByRole('link')).toBeAttached();
 
 }
 const main = async () => {
@@ -60,16 +69,11 @@ const main = async () => {
   for(const person of personsLocators){
     const {clickableLink:link, clickableText:name} = await getLinkNText(person);
     await link.click();
-    const exactNameHeading = page.getByRole('heading', {name});
-    const someChars = new RegExp(name.substr(1,3))
-    const regexpNameHeading = page.getByRole('heading', {name: someChars}).first();
-    // await expect(page.getByRole('heading', {name}).getByRole('link')).toBeAttached();
-    await expect(exactNameHeading.or(regexpNameHeading).getByRole('link')).toBeAttached();
+    await waitForPersonTable(page, name)
     const result = await getImage(page, name);
     console.log(result);
     await page.goBack({waitUntil: 'domcontentloaded'});
-    const x = await expect(page.getByRole('heading', {name: '배우/한국'}).getByRole('link')).toBeAttached();
-    // await sleep(2000)
+    await waitForInitialPage(page, '배우/한국')
   }
 
 
