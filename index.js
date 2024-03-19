@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const { expect } = require('@playwright/test');
 
 const HEADERS = /^(출생|국적|본관|신체|학력|가족|병력|데뷔|소속사|링크)$/
+const PERSON_TABLE_HEADERS = /(출생|학력)/
 const isTableHeader = text => {
   return HEADERS.test(text);
 }
@@ -20,10 +21,9 @@ const getLinInList = async (locator, regexp) => {
 }
 
 const getImage = async (page, name) => {
-  const detailPageHeader = await page.getByRole('heading', {name}).getByRole('link');
-  const table = await page.getByRole('table').first();
+  // const table = await page.getByRole('table').first();
+  const table = await page.getByRole('table').filter({hasText: '출생'});
   const imgLocator = await table.getByRole('img').nth(1);
-  const person = await detailPageHeader.innerText()
   const imgPath =  await imgLocator.evaluate(ele => ele.src);
   return { name, imgPath };
 };
@@ -35,6 +35,16 @@ const sleep = (time) => {
     }, time)
   }) 
 }
+const getLinkNText = async locator => {
+  const fullName = await locator.textContent();
+  const link = await locator.getByRole('link');
+  const count = await locator.getByRole('link').count();
+  console.log('name:', fullName, count);
+  const clickableLink = count > 1 ? link.first(): link;
+  const clickableText = count > 1 ? await link.first().textContent(): fullName;
+  return {clickableLink, clickableText}
+
+}
 const main = async () => {
   const KOR_ACTOR_URL = 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD';
   const PERSON_LIST_REGEXP = /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/;
@@ -44,14 +54,14 @@ const main = async () => {
   const personsLocators = await getLinInList(page, PERSON_LIST_REGEXP);
   console.log('1. number of persons:', personsLocators.length);
   for(const person of personsLocators){
-    const fullName = await person.textContent();
-    const link = await person.getByRole('link');
-    const count = await person.getByRole('link').count();
-    console.log('name:', fullName, count);
-    const firstLink = count > 1 ? link.first(): link;
-    const firstName = count > 1 ? await link.first().textContent():fullName;
-    await firstLink.click();
-    const result = await getImage(page, firstName);
+    const {clickableLink:link, clickableText:name} = await getLinkNText(person);
+    await link.click();
+    const exactNameHeading = page.getByRole('heading', {name});
+    const someChars = new RegExp(name.substr(1,3))
+    const regexpNameHeading = page.getByRole('heading', {name: someChars});
+    // await expect(page.getByRole('heading', {name}).getByRole('link')).toBeAttached();
+    await expect(exactNameHeading.or(regexpNameHeading).getByRole('link')).toBeAttached();
+    const result = await getImage(page, name);
     console.log(result);
     await page.goBack({waitUntil: 'domcontentloaded'});
     const x = await expect(page.getByRole('heading', {name: '배우/한국'}).getByRole('link')).toBeAttached();
