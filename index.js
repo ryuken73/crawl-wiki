@@ -15,14 +15,15 @@ const openHeadlessBrowser = async (options) => {
   return page
 }
 
-const getLinInList = async (locator, regexp) => {
+const getLinkInList = async (locator, regexp) => {
   // return locator.getByRole('listitem').getByRole('link', {name: regexp}).all();
   return locator.getByRole('listitem').filter({hasText: regexp}).all();
 }
 
 const getImage = async (page, name) => {
   // const table = await page.getByRole('table').first();
-  const table = await page.getByRole('table').filter({hasText: '출생'});
+  console.log('get image path...')
+  const table = await page.getByRole('table').filter({hasText: /출생/});
   const imgLocator = await table.getByRole('img').nth(1);
   const imgPath =  await imgLocator.evaluate(ele => ele.src);
   return { name, imgPath };
@@ -39,7 +40,7 @@ const getLinkNText = async locator => {
   const fullName = await locator.textContent();
   const link = await locator.getByRole('link');
   const count = await locator.getByRole('link').count();
-  console.log('name:', fullName, count);
+  console.log('get link and name:', fullName, count);
   const clickableLink = count > 1 ? link.first(): link;
   const clickableText = count > 1 ? await link.first().textContent(): fullName;
   return {clickableLink, clickableText}
@@ -48,24 +49,26 @@ const getLinkNText = async locator => {
 const main = async () => {
   const KOR_ACTOR_URL = 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD';
   const PERSON_LIST_REGEXP = /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/;
+  // const PERSON_LIST_REGEXP = /고수/;
 
   const page = await openHeadlessBrowser()
+  // goto Page 
   await page.goto(KOR_ACTOR_URL)
-  const personsLocators = await getLinInList(page, PERSON_LIST_REGEXP);
+  const personsLocators = await getLinkInList(page, PERSON_LIST_REGEXP);
+
   console.log('1. number of persons:', personsLocators.length);
   for(const person of personsLocators){
     const {clickableLink:link, clickableText:name} = await getLinkNText(person);
     await link.click();
     const exactNameHeading = page.getByRole('heading', {name});
     const someChars = new RegExp(name.substr(1,3))
-    const regexpNameHeading = page.getByRole('heading', {name: someChars});
+    const regexpNameHeading = page.getByRole('heading', {name: someChars}).first();
     // await expect(page.getByRole('heading', {name}).getByRole('link')).toBeAttached();
     await expect(exactNameHeading.or(regexpNameHeading).getByRole('link')).toBeAttached();
     const result = await getImage(page, name);
     console.log(result);
     await page.goBack({waitUntil: 'domcontentloaded'});
     const x = await expect(page.getByRole('heading', {name: '배우/한국'}).getByRole('link')).toBeAttached();
-    console.log('person attached:',person, x);
     // await sleep(2000)
   }
 
