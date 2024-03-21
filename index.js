@@ -3,6 +3,16 @@ const { expect } = require('@playwright/test');
 
 const HEADERS = /^(출생|국적|본관|신체|학력|가족|병력|데뷔|소속사|링크)$/
 const PERSON_TABLE_HEADERS = /(출생|학력)/
+
+const CRAWL_URLS = [
+  {
+    pageHeader: '배우/한국',
+    pageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
+    // pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    pageLinksRegExp: /김다현/
+  }
+]
+
 const isTableHeader = text => {
   return HEADERS.test(text);
 }
@@ -23,10 +33,16 @@ const getLinkInList = async (locator, regexp) => {
 const getImage = async (page, name) => {
   // const table = await page.getByRole('table').first();
   console.log('get image path...')
-  const table = await page.getByRole('table').filter({hasText: /출생/});
-  const imgLocator = await table.getByRole('img').nth(1);
-  const imgPath =  await imgLocator.evaluate(ele => ele.src);
-  return { name, imgPath };
+  let table;
+  try {
+    table = await page.getByRole('table').filter({hasText: /출생/});
+    const imgLocator = await table.getByRole('img', {timeout: 1000}).nth(1);
+    const imgPath =  await imgLocator.evaluate(ele => ele.src,'',{timeout: 1000});
+    return { name, imgPath };
+  } catch(err) {
+    console.error(err);
+    return { name, imgPath: 'none'};
+  }
 };
 
 const sleep = (time) => {
@@ -43,39 +59,53 @@ const getLinkNText = async locator => {
   console.log('get link and name:', fullName, count);
   const clickableLink = count > 1 ? link.first(): link;
   const clickableText = count > 1 ? await link.first().textContent(): fullName;
-  return {clickableLink, clickableText}
+  return {clickableLink, clickableText, fullName}
 }
-const waitForPersonTable = async (page, name) => {
+const waitForPersonPage = async (page, name) => {
   const exactNameHeading = page.getByRole('heading', {name});
   const someChars = new RegExp(name.substr(1,3))
   const regexpNameHeading = page.getByRole('heading', {name: someChars}).first();
-  await expect(exactNameHeading.or(regexpNameHeading).getByRole('link')).toBeAttached();
+  try {
+    await expect(exactNameHeading.or(regexpNameHeading).getByRole('link')).toBeAttached();
+    return true;
+  } catch(err){
+    return false
+  }
 }
 const waitForInitialPage = async (page, name) => {
   await expect(page.getByRole('heading', {name}).getByRole('link')).toBeAttached();
 
 }
-const main = async () => {
-  const KOR_ACTOR_URL = 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD';
-  const PERSON_LIST_REGEXP = /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/;
+const main = async (crawlTarget) => {
   // const PERSON_LIST_REGEXP = /고수/;
+  const {pageHeader, pageUrl, pageLinksRegExp} = crawlTarget;
 
   const page = await openHeadlessBrowser()
-  // goto Page 
-  await page.goto(KOR_ACTOR_URL)
-  const personsLocators = await getLinkInList(page, PERSON_LIST_REGEXP);
+  await page.goto(pageUrl)
+  const personsLocators = await getLinkInList(page, pageLinksRegExp);
 
   console.log('1. number of persons:', personsLocators.length);
+  let processed = 0;
   for(const person of personsLocators){
-    const {clickableLink:link, clickableText:name} = await getLinkNText(person);
+    const {
+      clickableLink:link, 
+      clickableText:name, 
+      fullName
+    } = await getLinkNText(person);
     await link.click();
-    await waitForPersonTable(page, name)
+    const tableFound = await waitForPersonPage(page, name)
+    if(!tableFound){
+      console.error('[ERROR]no table found:', name)
+      continue;
+    }
     const result = await getImage(page, name);
+    result.fullName = fullName;
     console.log(result);
-    await page.goBack({waitUntil: 'domcontentloaded'});
-    await waitForInitialPage(page, '배우/한국')
-  }
+    await page.goBack();
+    await waitForInitialPage(page, pageHeader)
 
+    console.log('processed...', ++processed)
+  }
 
   // const personInfo = {};
   // let lastKey = 'none';
@@ -109,4 +139,4 @@ const main = async () => {
   // }
 }
 
-main()
+main(CRAWL_URLS[0])
