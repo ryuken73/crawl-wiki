@@ -1,5 +1,7 @@
 const { chromium } = require('playwright');
 const { expect } = require('@playwright/test');
+const {create, setLevel} = require('./lib/logger')();
+const logger = create({logFile:'crawl_wiki.log'});
 
 const HEADERS = /^(출생|국적|본관|신체|학력|가족|병력|데뷔|소속사|링크)$/
 const PERSON_TABLE_HEADERS = /(출생|학력)/
@@ -32,7 +34,7 @@ const getLinkInList = async (locator, regexp) => {
 
 const getImage = async (page, name) => {
   // const table = await page.getByRole('table').first();
-  console.log('get image path...')
+  logger.info('get image path...')
   let table;
   try {
     table = await page.getByRole('table').filter({hasText: /출생/});
@@ -56,7 +58,7 @@ const getLinkNText = async locator => {
   const fullName = await locator.textContent();
   const link = await locator.getByRole('link');
   const count = await locator.getByRole('link').count();
-  console.log('get link and name:', fullName, count);
+  logger.info('get link and name:', fullName, count);
   const clickableLink = count > 1 ? link.first(): link;
   const clickableText = count > 1 ? await link.first().textContent(): fullName;
   return {clickableLink, clickableText, fullName}
@@ -84,7 +86,7 @@ const main = async (crawlTarget) => {
   await page.goto(pageUrl)
   const personsLocators = await getLinkInList(page, pageLinksRegExp);
 
-  console.log('1. number of persons:', personsLocators.length);
+  logger.info('1. number of persons:', personsLocators.length);
   let processed = 0;
   for(const person of personsLocators){
     const {
@@ -100,11 +102,11 @@ const main = async (crawlTarget) => {
     }
     const result = await getImage(page, name);
     result.fullName = fullName;
-    console.log(result);
+    logger.info(result);
     await page.goBack();
     await waitForInitialPage(page, pageHeader)
 
-    console.log('processed...', ++processed)
+    logger.info('processed...', ++processed)
   }
 
   // const personInfo = {};

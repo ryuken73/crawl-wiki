@@ -1,0 +1,18 @@
+2024-03-22T13:39:14+0900 <info> index.js:89 (main) 1. number of persons: 2265
+2024-03-22T13:39:14+0900 <info> index.js:61 (getLinkNText) get link and name: 감우성 1
+2024-03-22T13:39:15+0900 <info> index.js:37 (getImage) get image path...
+2024-03-22T13:39:16+0900 <info> index.js:105 (main) {
+  name: '감우성',
+  imgPath: 'https://i.namu.wiki/i/dK1KyBRAHc3EHwLWhdG4jLSWaSvk65Dv_hDrQ9vIq4yoRnX6X2hXROzo_1aaLSN1sI2HklaXTHBhkXG93qyxcevORTDagJ5CgBfcPdJmIdBjhDSqtc-soSZMlWa_cnJ96N6pDbJPQVM04iqJLEF7NQ.webp',
+  fullName: '감우성'
+}
+2024-03-22T13:39:17+0900 <info> index.js:109 (main) processed... 1
+2024-03-22T13:39:17+0900 <info> index.js:61 (getLinkNText) get link and name: 강경준 1
+2024-03-22T13:39:18+0900 <info> index.js:37 (getImage) get image path...
+2024-03-22T13:39:19+0900 <info> index.js:105 (main) {
+  name: '강경준',
+  imgPath: 'https://i.namu.wiki/i/1WAoNk7kyI9qVVYjwQMZdTZs6sVxNDXKqFuMcSn_MOou3H_c-C30qRIoRSR3PiFWiGSH3Tnk95ZKJqjTWa-4Z0Jz5pUPsQX2IsgBBDNDpgskl9NDHw-_n4AwepkhS_SV-PqG5OrFR2L3YsDJitZelw.webp',
+  fullName: '강경준'
+}
+2024-03-22T13:39:20+0900 <info> index.js:109 (main) processed... 2
+2024-03-22T13:39:21+0900 <info> index.js:61 (getLinkNText) get link and name: 강계식 1
