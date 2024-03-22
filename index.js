@@ -8,8 +8,8 @@ const CRAWL_URLS = [
   {
     pageHeader: '배우/한국',
     pageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
-    // pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    pageLinksRegExp: /김다현/
+    pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    // pageLinksRegExp: /김다현/
   }
 ]
 
@@ -36,7 +36,7 @@ const getImage = async (page, name) => {
   let table;
   try {
     table = await page.getByRole('table').filter({hasText: /출생/});
-    const imgLocator = await table.getByRole('img', {timeout: 1000}).nth(1);
+    const imgLocator = await table.getByRole('img', {timeout: 5000}).nth(1);
     const imgPath =  await imgLocator.evaluate(ele => ele.src,'',{timeout: 1000});
     return { name, imgPath };
   } catch(err) {
