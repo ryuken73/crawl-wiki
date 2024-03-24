@@ -78,7 +78,7 @@ const waitForInitialPage = async (page, name) => {
   await expect(page.getByRole('heading', {name}).getByRole('link')).toBeAttached();
 
 }
-const main = async (crawlTarget) => {
+const main = async (crawlTarget, resultFile) => {
   // const PERSON_LIST_REGEXP = /고수/;
   const {pageHeader, pageUrl, pageLinksRegExp} = crawlTarget;
 
@@ -141,4 +141,5 @@ const main = async (crawlTarget) => {
   // }
 }
 
-main(CRAWL_URLS[0])
+const RESULT_FILE = 'crawl_wiki.json'
+main(CRAWL_URLS[0], RESULT_FILE)
