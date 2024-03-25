@@ -1,6 +1,7 @@
 const { chromium } = require('playwright');
 const { expect } = require('@playwright/test');
 const {create, setLevel} = require('./lib/logger')();
+const {addSuccess, checkSuccess} = require('./resultProcess');
 const logger = create({logFile:'crawl_wiki.log'});
 
 const HEADERS = /^(출생|국적|본관|신체|학력|가족|병력|데뷔|소속사|링크)$/
@@ -11,7 +12,7 @@ const CRAWL_URLS = [
     pageHeader: '배우/한국',
     pageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
     pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    // pageLinksRegExp: /김다현/
+    // pageLinksRegExp: /김현중/
   }
 ]
 
@@ -65,12 +66,12 @@ const getLinkNText = async locator => {
 }
 const waitForPersonPage = async (page, name) => {
   const exactNameHeading = page.getByRole('heading', {name});
-  const someChars = new RegExp(name.substr(1,3))
+  const someChars = new RegExp(name.substr(0,3))
   const regexpNameHeading = page.getByRole('heading', {name: someChars}).first();
   try {
     await expect(exactNameHeading.or(regexpNameHeading).getByRole('link')).toBeAttached();
     return true;
-  } catch(err){
+  } catch(err){name
     return false
   }
 }
@@ -94,15 +95,32 @@ const main = async (crawlTarget, resultFile) => {
       clickableText:name, 
       fullName
     } = await getLinkNText(person);
+    
+    const alreadyDone = await checkSuccess(pageHeader, fullName);
+    if(alreadyDone){
+      logger.info(`${fullName} already done!`);
+      continue;
+    }
+
     await link.click();
     const tableFound = await waitForPersonPage(page, name)
     if(!tableFound){
       console.error('[ERROR]no table found:', name)
+      await page.goBack();
+      await waitForInitialPage(page, pageHeader)
+      logger.info('processed...', ++processed)
       continue;
     }
     const result = await getImage(page, name);
+    const {imgPath} = result;
+    const imgValid = imgPath !== 'none';
     result.fullName = fullName;
-    logger.info(result);
+    if(imgValid){
+      await addSuccess(pageHeader, fullName, imgPath);
+      logger.info(`${fullName} success.`);
+    } else {
+      logger.error(`${fullName} failed.`);
+    }
     await page.goBack();
     await waitForInitialPage(page, pageHeader)
 
