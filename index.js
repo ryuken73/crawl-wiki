@@ -13,6 +13,7 @@ const CRAWL_URLS = [
     pageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
     pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
     // pageLinksRegExp: /김현중/
+    // pageLinksRegExp: /김형/
   }
 ]
 
@@ -22,7 +23,15 @@ const isTableHeader = text => {
 
 const openHeadlessBrowser = async (options) => {
   const browser = await chromium.launchPersistentContext('', {
-    headless: false
+    headless: false,
+    viewport: {
+      width: 1500,
+      height: 1000
+    },
+    screen: {
+      width: 1500,
+      height: 1000
+    }
   })
   const page = await browser.newPage()
   return page
@@ -39,7 +48,7 @@ const getImage = async (page, name) => {
   let table;
   try {
     table = await page.getByRole('table').filter({hasText: /출생/});
-    const imgLocator = await table.getByRole('img', {timeout: 5000}).nth(1);
+    const imgLocator = await table.getByRole('img', {timeout: 1000}).nth(1);
     const imgPath =  await imgLocator.evaluate(ele => ele.src,'',{timeout: 1000});
     return { name, imgPath };
   } catch(err) {
@@ -68,8 +77,10 @@ const waitForPersonPage = async (page, name) => {
   const exactNameHeading = page.getByRole('heading', {name});
   const someChars = new RegExp(name.substr(0,3))
   const regexpNameHeading = page.getByRole('heading', {name: someChars}).first();
+  console.log(someChars)
   try {
-    await expect(exactNameHeading.or(regexpNameHeading).getByRole('link')).toBeAttached();
+    // await expect(exactNameHeading.or(regexpNameHeading).getByRole('link')).toBeAttached();
+    await exactNameHeading.or(regexpNameHeading).getByRole('link');
     return true;
   } catch(err){name
     return false
