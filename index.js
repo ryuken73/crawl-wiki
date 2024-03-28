@@ -47,7 +47,14 @@ const getImage = async (page, name) => {
   logger.info('get image path...')
   let table;
   try {
-    table = await page.getByRole('table').filter({hasText: /출생/});
+    const keyword1 = await page.getByRole('table').filter({hasText: /출생/});
+    const keyword2 = await page.getByRole('table').filter({hasText: /국적/});
+    table = await keyword1.or(keyword2);
+    const images = await table.getByRole('img', {timeout: 1000});
+    await expect.poll(async () => images.count()).toBeGreaterThan(0);
+    const imgCount = await table.getByRole('img', {timeout: 1000}).count();
+    console.log('table count = ',await table.count());
+    console.log('image count = ',imgCount);
     const imgLocator = await table.getByRole('img', {timeout: 1000}).nth(1);
     const imgPath =  await imgLocator.evaluate(ele => ele.src,'',{timeout: 1000});
     return { name, imgPath };
@@ -77,7 +84,6 @@ const waitForPersonPage = async (page, name) => {
   const exactNameHeading = page.getByRole('heading', {name});
   const someChars = new RegExp(name.substr(0,3))
   const regexpNameHeading = page.getByRole('heading', {name: someChars}).first();
-  console.log(someChars)
   try {
     // await expect(exactNameHeading.or(regexpNameHeading).getByRole('link')).toBeAttached();
     await exactNameHeading.or(regexpNameHeading).getByRole('link');
