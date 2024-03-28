@@ -1,9 +1,13 @@
 const { chromium } = require('playwright');
 const { expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
 const {create, setLevel} = require('./lib/logger')();
 const {addSuccess, checkSuccess} = require('./resultProcess');
 const logger = create({logFile:'crawl_wiki.log'});
 
+const SAVE_PATH = './images'
 const HEADERS = /^(출생|국적|본관|신체|학력|가족|병력|데뷔|소속사|링크)$/
 const PERSON_TABLE_HEADERS = /(출생|학력)/
 
@@ -13,7 +17,7 @@ const CRAWL_URLS = [
     pageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
     pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
     // pageLinksRegExp: /김현중/
-    // pageLinksRegExp: /김형/
+    // pageLinksRegExp: /박유/
   }
 ]
 
@@ -63,6 +67,13 @@ const getImage = async (page, name) => {
     return { name, imgPath: 'none'};
   }
 };
+const saveImageFromUrl = async (url, fname) => {
+  const response = await axios.get(url, {responseType: 'arraybuffer'});
+  fs.writeFile(fname, response.data, (err) => {
+    if(err) throw err;
+    logger.info('save image success:', fname)
+  })
+}
 
 const sleep = (time) => {
   return new Promise((resolve, reject) => {
@@ -134,6 +145,8 @@ const main = async (crawlTarget, resultFile) => {
     result.fullName = fullName;
     if(imgValid){
       await addSuccess(pageHeader, fullName, imgPath);
+      const saveFileName = `${path.join(SAVE_PATH, fullName)}.webp`;
+      await saveImageFromUrl(imgPath, saveFileName);
       logger.info(`${fullName} success.`);
     } else {
       logger.error(`${fullName} failed.`);
