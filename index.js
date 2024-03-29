@@ -27,7 +27,7 @@ const isTableHeader = text => {
 
 const openHeadlessBrowser = async (options) => {
   const browser = await chromium.launchPersistentContext('', {
-    headless: false,
+    headless: true,
     viewport: {
       width: 1500,
       height: 1000
@@ -42,8 +42,8 @@ const openHeadlessBrowser = async (options) => {
 }
 
 const getLinkInList = async (locator, regexp) => {
-  // return locator.getByRole('listitem').getByRole('link', {name: regexp}).all();
-  return locator.getByRole('listitem').filter({hasText: regexp}).all();
+  // return locator.getByRole('listitem').filter({hasText: regexp}).all();
+  return locator.getByRole('listitem').filter({has: await locator.getByRole('link')}).filter({hasText: regexp}).all();
 }
 
 const getImage = async (page, name) => {
@@ -130,16 +130,21 @@ const main = async (crawlTarget, resultFile) => {
       continue;
     }
 
-    await link.click();
-    const tableFound = await waitForPersonPage(page, name)
+    // await link.click();
+
+    const pagePromise = page.context().waitForEvent('page');
+    await link.click({modifiers: ['Control']});
+    const newPage = await pagePromise;
+    newPage.bringToFront();
+
+    const tableFound = await waitForPersonPage(newPage, name)
     if(!tableFound){
       console.error('[ERROR]no table found:', name)
-      await page.goBack();
-      await waitForInitialPage(page, pageHeader)
+      newPage.close();
       logger.info('processed...', ++processed)
       continue;
     }
-    const result = await getImage(page, name);
+    const result = await getImage(newPage, name);
     const {imgPath} = result;
     const imgValid = imgPath !== 'none';
     result.fullName = fullName;
@@ -151,8 +156,30 @@ const main = async (crawlTarget, resultFile) => {
     } else {
       logger.error(`${fullName} failed.`);
     }
-    await page.goBack();
-    await waitForInitialPage(page, pageHeader)
+    newPage.close();
+
+    // const tableFound = await waitForPersonPage(page, name)
+    // if(!tableFound){
+    //   console.error('[ERROR]no table found:', name)
+    //   await page.goBack();
+    //   await waitForInitialPage(page, pageHeader)
+    //   logger.info('processed...', ++processed)
+    //   continue;
+    // }
+    // const result = await getImage(page, name);
+    // const {imgPath} = result;
+    // const imgValid = imgPath !== 'none';
+    // result.fullName = fullName;
+    // if(imgValid){
+    //   await addSuccess(pageHeader, fullName, imgPath);
+    //   const saveFileName = `${path.join(SAVE_PATH, fullName)}.webp`;
+    //   await saveImageFromUrl(imgPath, saveFileName);
+    //   logger.info(`${fullName} success.`);
+    // } else {
+    //   logger.error(`${fullName} failed.`);
+    // }
+    // await page.goBack();
+    // await waitForInitialPage(page, pageHeader)
 
     logger.info('processed...', ++processed)
   }

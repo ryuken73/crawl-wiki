@@ -1,5 +1,7 @@
 const fs = require('fs');
 const processedFile = `processed.db`;
+let content = null;
+
 const appendProcessed = async (string) => {
   return new Promise((resolve, reject) => {
     fs.appendFile(processedFile, string, (err) => {
@@ -11,6 +13,7 @@ const appendProcessed = async (string) => {
     })
   })
 }
+
 const addSuccess = async (pageUrl, fullName, imgPath, preventDup=true) => {
   if(preventDup){
     const isDup = await checkSuccess(pageUrl, fullName);
@@ -22,9 +25,17 @@ const addSuccess = async (pageUrl, fullName, imgPath, preventDup=true) => {
   const result = await appendProcessed(record);
   return result;
 }
+const getDB = async (fname) => {
+  return await fs.promises.readFile(processedFile);
+}
+
 const checkSuccess = async (pageUrl, fullName) => {
   try {
-    const content = await fs.promises.readFile(processedFile);
+    if(content === null){
+      console.log('get initial data');
+      content = await getDB(processedFile);
+    }
+    // const content = await fs.promises.readFile(processedFile);
     const pageContent = content.toString().split('\n').filter(result => {
       return result.startsWith(pageUrl);
     })

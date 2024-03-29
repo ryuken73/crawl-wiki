@@ -63,18 +63,23 @@ const main = async (crawlTarget, resultFile) => {
     } = await getLinkNText(person);
     console.log(link);
     if(fullName === '김형준 - (SS501)'){
-      await link.click();
+      // await link.click();
+      const pagePromise = page.context().waitForEvent('page');
+      await link.click({modifiers: ['Control']});
+      const newPage = await pagePromise
+      newPage.bringToFront();
 
-      const tableFound = await waitForPersonPage(page, name)
+      const tableFound = await waitForPersonPage(newPage, name)
       console.log(tableFound)
 
       if(!tableFound){
         console.error('[ERROR]no table found:', name)
-        await page.goBack();
-        await waitForInitialPage(page, pageHeader)
+        // await page.goBack();
+        // await waitForInitialPage(page, pageHeader)
         logger.info('processed...', ++processed)
         continue;
       }
+      newPage.close();
     }
   }
 };
