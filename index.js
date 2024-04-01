@@ -130,8 +130,6 @@ const main = async (crawlTarget, resultFile) => {
       continue;
     }
 
-    // await link.click();
-
     const pagePromise = page.context().waitForEvent('page');
     await link.click({modifiers: ['Control']});
     const newPage = await pagePromise;
@@ -157,29 +155,6 @@ const main = async (crawlTarget, resultFile) => {
       logger.error(`${fullName} failed.`);
     }
     newPage.close();
-
-    // const tableFound = await waitForPersonPage(page, name)
-    // if(!tableFound){
-    //   console.error('[ERROR]no table found:', name)
-    //   await page.goBack();
-    //   await waitForInitialPage(page, pageHeader)
-    //   logger.info('processed...', ++processed)
-    //   continue;
-    // }
-    // const result = await getImage(page, name);
-    // const {imgPath} = result;
-    // const imgValid = imgPath !== 'none';
-    // result.fullName = fullName;
-    // if(imgValid){
-    //   await addSuccess(pageHeader, fullName, imgPath);
-    //   const saveFileName = `${path.join(SAVE_PATH, fullName)}.webp`;
-    //   await saveImageFromUrl(imgPath, saveFileName);
-    //   logger.info(`${fullName} success.`);
-    // } else {
-    //   logger.error(`${fullName} failed.`);
-    // }
-    // await page.goBack();
-    // await waitForInitialPage(page, pageHeader)
 
     logger.info('processed...', ++processed)
   }
