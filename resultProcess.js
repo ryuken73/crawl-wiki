@@ -1,6 +1,11 @@
 const fs = require('fs');
+const crawl_config = require('./crawl_config.json');
 const processedFile = `processed.db`;
+const {create, setLevel} = require('./lib/logger')();
 let content = null;
+
+const logger = create({logFile:'crawl_wiki.log'});
+const {BASE_DIR} = crawl_config;
 
 const appendProcessed = async (string) => {
   return new Promise((resolve, reject) => {
@@ -14,14 +19,14 @@ const appendProcessed = async (string) => {
   })
 }
 
-const addSuccess = async (pageUrl, fullName, imgPath, preventDup=true) => {
+const addSuccess = async (pageUrl, fullName, imgPath, preventDup=true, type='IMAGE') => {
   if(preventDup){
-    const isDup = await checkSuccess(pageUrl, fullName);
+    const isDup = await checkSuccess(pageUrl, fullName, type);
     if(isDup) return false
   }
   const timestamp = (new Date()).toLocaleString();
   const fullNameReplaced = fullName.replace(')', '').replace('(', '');
-  const record = `${pageUrl}@@${fullNameReplaced}@@${timestamp}@@${imgPath}\n`;
+  const record = `${pageUrl}@@${type}@@${fullNameReplaced}@@${timestamp}@@${imgPath}\n`;
   const result = await appendProcessed(record);
   return result;
 }
@@ -29,10 +34,10 @@ const getDB = async (fname) => {
   return await fs.promises.readFile(processedFile);
 }
 
-const checkSuccess = async (pageUrl, fullName) => {
+const checkSuccess = async (pageUrl, fullName, type='IMAGE') => {
   try {
     if(content === null){
-      console.log('get initial data');
+      logger.info('load initial DB:', processedFile);
       content = await getDB(processedFile);
     }
     // const content = await fs.promises.readFile(processedFile);
@@ -40,11 +45,11 @@ const checkSuccess = async (pageUrl, fullName) => {
       return result.startsWith(pageUrl);
     })
     const fullNameReplaced = fullName.replace(')', '').replace('(', '');
-    console.log('checkSuccess:', fullNameReplaced)
+    logger.info('checkSuccess:',pageUrl, type, fullNameReplaced)
     return pageContent.some(result => {
       // const regexp = new RegExp(`@@${fullName}@@`);
       // return regexp.test(result);
-      return result.search(`@@${fullNameReplaced}@@`) !== -1;
+      return result.search(`@@${type}@@${fullNameReplaced}@@`) !== -1;
     })
   } catch(err) {
     return false;

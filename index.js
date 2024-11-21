@@ -6,10 +6,18 @@ const axios = require('axios');
 const {create, setLevel} = require('./lib/logger')();
 const {addSuccess, checkSuccess} = require('./resultProcess');
 const logger = create({logFile:'crawl_wiki.log'});
+const crawl_config = require('./crawl_config.json');
 
-const SAVE_PATH = './images'
+const {BASE_DIR} = crawl_config;
+// const SAVE_PATH = './images'
 const HEADERS = /^(출생|국적|본관|신체|학력|가족|병력|데뷔|소속사|링크)$/
 const PERSON_TABLE_HEADERS = /(출생|학력)/
+const IS_HEADLESS = false;
+const SAVE_TYPE = {
+  image: 'IMAGE',
+  text: 'TEXT'
+}
+const ADD_IF_NOT_DUP = true;
 
 const CRAWL_URLS = [
   {
@@ -18,6 +26,13 @@ const CRAWL_URLS = [
     pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
     // pageLinksRegExp: /김현중/
     // pageLinksRegExp: /박유/
+    // pageLinksRegExp: /한효주/
+  },
+  {
+    pageHeader: '가수/한국',
+    pageUrl: 'https://namu.wiki/w/%EA%B0%80%EC%88%98/%ED%95%9C%EA%B5%AD',
+    // pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    pageLinksRegExp: /.*/
   }
 ]
 
@@ -27,7 +42,7 @@ const isTableHeader = text => {
 
 const openHeadlessBrowser = async (options) => {
   const browser = await chromium.launchPersistentContext('', {
-    headless: true,
+    headless: IS_HEADLESS,
     viewport: {
       width: 1500,
       height: 1000
@@ -46,6 +61,19 @@ const getLinkInList = async (locator, regexp) => {
   return locator.getByRole('listitem').filter({has: await locator.getByRole('link')}).filter({hasText: regexp}).all();
 }
 
+const getPersonTable = async (page) => {
+  const keyword1 = await page.getByRole('table').filter({hasText: /출생/});
+  const keyword2 = await page.getByRole('table').filter({hasText: /국적/});
+  try {
+    table = await keyword1.or(keyword2);
+    const fullText = await table.innerText({timeout: 5000});
+    return fullText;
+  } catch (err) {
+    logger.error(err);  
+    return '';
+  }
+}
+
 const getImage = async (page, name) => {
   // const table = await page.getByRole('table').first();
   logger.info('get image path...')
@@ -54,11 +82,12 @@ const getImage = async (page, name) => {
     const keyword1 = await page.getByRole('table').filter({hasText: /출생/});
     const keyword2 = await page.getByRole('table').filter({hasText: /국적/});
     table = await keyword1.or(keyword2);
+    console.log(table)
     const images = await table.getByRole('img', {timeout: 1000});
     await expect.poll(async () => images.count()).toBeGreaterThan(0);
     const imgCount = await table.getByRole('img', {timeout: 1000}).count();
-    console.log('table count = ',await table.count());
-    console.log('image count = ',imgCount);
+    logger.info('table count = ',await table.count());
+    logger.info('image count = ',imgCount);
     const imgLocator = await table.getByRole('img', {timeout: 1000}).nth(1);
     const imgPath =  await imgLocator.evaluate(ele => ele.src,'',{timeout: 1000});
     return { name, imgPath };
@@ -67,6 +96,12 @@ const getImage = async (page, name) => {
     return { name, imgPath: 'none'};
   }
 };
+const savePersonInfo = async(fullText, fname) => {
+  fs.writeFile(fname, fullText, (err) => {
+    if(err) throw err;
+    logger.info('save personInfo success:', fname)
+  })
+}
 const saveImageFromUrl = async (url, fname) => {
   const response = await axios.get(url, {responseType: 'arraybuffer'});
   fs.writeFile(fname, response.data, (err) => {
@@ -84,16 +119,20 @@ const sleep = (time) => {
 }
 const getLinkNText = async locator => {
   const fullName = await locator.textContent();
+  const sanitizedFname = sanitizeFname(fullName);
   const link = await locator.getByRole('link');
   const count = await locator.getByRole('link').count();
   logger.info('get link and name:', fullName, count);
   const clickableLink = count > 1 ? link.first(): link;
   const clickableText = count > 1 ? await link.first().textContent(): fullName;
-  return {clickableLink, clickableText, fullName}
+  return {clickableLink, clickableText, fullName: sanitizedFname}
 }
 const waitForPersonPage = async (page, name) => {
+  const escapeRegExp = (input) => {
+    return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
   const exactNameHeading = page.getByRole('heading', {name});
-  const someChars = new RegExp(name.substr(0,3))
+  const someChars = new RegExp(escapeRegExp(name.substr(0,3)))
   const regexpNameHeading = page.getByRole('heading', {name: someChars}).first();
   try {
     // await expect(exactNameHeading.or(regexpNameHeading).getByRole('link')).toBeAttached();
@@ -107,12 +146,19 @@ const waitForInitialPage = async (page, name) => {
   await expect(page.getByRole('heading', {name}).getByRole('link')).toBeAttached();
 
 }
+const sanitizeFname = (fname) => {
+  const invalidChars = /[\\/:*?"<>|]/g;
+  return fname.replace(invalidChars, '_');
+}
+
 const main = async (crawlTarget, resultFile) => {
   // const PERSON_LIST_REGEXP = /고수/;
   const {pageHeader, pageUrl, pageLinksRegExp} = crawlTarget;
 
+  const SAVE_PATH = path.join(BASE_DIR, pageHeader);
+
   const page = await openHeadlessBrowser()
-  await page.goto(pageUrl)
+  await page.goto(pageUrl, {timeout: 60000})
   const personsLocators = await getLinkInList(page, pageLinksRegExp);
 
   logger.info('1. number of persons:', personsLocators.length);
@@ -124,9 +170,11 @@ const main = async (crawlTarget, resultFile) => {
       fullName
     } = await getLinkNText(person);
     
-    const alreadyDone = await checkSuccess(pageHeader, fullName);
-    if(alreadyDone){
-      logger.info(`${fullName} already done!`);
+    const alreadyDoneImage = await checkSuccess(pageHeader, fullName, SAVE_TYPE.image);
+    const alreadyDoneText = await checkSuccess(pageHeader, fullName, SAVE_TYPE.text);
+    const allDone = alreadyDoneImage && alreadyDoneText;
+    if(allDone){
+      logger.info(`${fullName} save image and text already done!`);
       continue;
     }
 
@@ -142,18 +190,37 @@ const main = async (crawlTarget, resultFile) => {
       logger.info('processed...', ++processed)
       continue;
     }
-    const result = await getImage(newPage, name);
-    const {imgPath} = result;
-    const imgValid = imgPath !== 'none';
-    result.fullName = fullName;
-    if(imgValid){
-      await addSuccess(pageHeader, fullName, imgPath);
-      const saveFileName = `${path.join(SAVE_PATH, fullName)}.webp`;
-      await saveImageFromUrl(imgPath, saveFileName);
-      logger.info(`${fullName} success.`);
+    if(!alreadyDoneImage){
+      const result = await getImage(newPage, name);
+      const {imgPath} = result;
+      const imgValid = imgPath !== 'none';
+      result.fullName = fullName;
+      if(imgValid){
+        const saveFileName = `${path.join(SAVE_PATH, fullName)}.webp`;
+        await saveImageFromUrl(imgPath, saveFileName);
+        await addSuccess(pageHeader, fullName, imgPath, ADD_IF_NOT_DUP, SAVE_TYPE.image);
+        logger.info(`${fullName} save image success.`);
+      } else {
+        logger.error(`${fullName} save image failed.`);
+      }
     } else {
-      logger.error(`${fullName} failed.`);
+      logger.info(`${fullName} image already done.`);
     }
+    if(!alreadyDoneText){
+      const personDataText = await getPersonTable(newPage);
+      logger.info('length of preson data:', personDataText.length);
+      if(personDataText.length > 0){
+        const presonDataFileName = `${path.join(SAVE_PATH, fullName)}.txt`;
+        await savePersonInfo(personDataText, presonDataFileName);
+        await addSuccess(pageHeader, fullName, presonDataFileName, ADD_IF_NOT_DUP, SAVE_TYPE.text);
+        logger.info(`${fullName} save text success.`);
+      } else {
+        logger.error(`${fullName} save text failed.`);
+      }
+    } else {
+      logger.info(`${fullName} text already done.`);
+    }
+
     newPage.close();
 
     logger.info('processed...', ++processed)
@@ -192,4 +259,4 @@ const main = async (crawlTarget, resultFile) => {
 }
 
 const RESULT_FILE = 'crawl_wiki.json'
-main(CRAWL_URLS[0], RESULT_FILE)
+main(CRAWL_URLS[1], RESULT_FILE)
