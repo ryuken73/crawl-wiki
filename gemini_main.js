@@ -3,6 +3,11 @@ const {key} = require('./gemini_api_key.json');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const {
+  getCurrentSeqId,
+  getNextSeqId,
+  resetNextSeqId
+} = require('./lib/queries');
 
 const RULE_INSTRUCTION = `
   앞으로 입력되는 텍스트들을 json array로 만들어주세요.
@@ -14,7 +19,7 @@ const RULE_INSTRUCTION = `
     "영문이름": "Kim Jungmin",
     "한자이름": "金正洙",
     "본명": "김정수 (金正洙, Kim Jung Soo)",
-    "출생": "1968년 10월 14일",
+    "출생": "1968-10-14",
     "나이": 56,
     "출생지": "서울특별시 마포구 성산동",
     "국적": "대한민국",
