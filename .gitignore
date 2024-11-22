@@ -3,3 +3,5 @@ images
 crawl_wiki.log
 gemini_api_key.json
 processed.db
+start.sh
+run_*.sh
