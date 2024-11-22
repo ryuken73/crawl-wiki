@@ -7,6 +7,11 @@ const {create, setLevel} = require('./lib/logger')();
 const {addSuccess, checkSuccess} = require('./resultProcess');
 const logger = create({logFile:'crawl_wiki.log'});
 const crawl_config = require('./crawl_config.json');
+const {
+  getCurrentSeqId,
+  getNextSeqId,
+  resetNextSeqId
+} = require('./lib/queries');
 
 const {BASE_DIR} = crawl_config;
 // const SAVE_PATH = './images'
@@ -24,6 +29,8 @@ const CRAWL_URLS = [
     pageHeader: '배우/한국',
     pageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
     pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    idPrefix: 'ACTOR_KOREA',
+    dbSeqName: 'person.actor_id_seq'
     // pageLinksRegExp: /김현중/
     // pageLinksRegExp: /박유/
     // pageLinksRegExp: /한효주/
@@ -32,7 +39,9 @@ const CRAWL_URLS = [
     pageHeader: '가수/한국',
     pageUrl: 'https://namu.wiki/w/%EA%B0%80%EC%88%98/%ED%95%9C%EA%B5%AD',
     // pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    pageLinksRegExp: /.*/
+    pageLinksRegExp: /.*/,
+    idPrefix: 'SINGER_KOREA',
+    dbSeqName: 'person.singer_id_seq'
   }
 ]
 
@@ -146,14 +155,28 @@ const waitForInitialPage = async (page, name) => {
   await expect(page.getByRole('heading', {name}).getByRole('link')).toBeAttached();
 
 }
+// const sanitizeFname = (fname) => {
+//   const invalidChars = /\-[\\/:*?"<>| ]/g;
+//   return fname.replace(invalidChars, '_').replace(/_+/g, '_');
+// }
 const sanitizeFname = (fname) => {
-  const invalidChars = /[\\/:*?"<>|]/g;
-  return fname.replace(invalidChars, '_');
+  const toRemoveChars = /['"() ]/g;
+  const invalidChars = /[\\/:*?"<>\|\-]/g;
+  return fname.replace(toRemoveChars, '').replace(invalidChars, '_').replace(/_+/g, '_');
+}
+const genUniqId = (prefix, id, fullName) => {
+  return `${prefix}_${id}_${fullName}`;
 }
 
 const main = async (crawlTarget, resultFile) => {
   // const PERSON_LIST_REGEXP = /고수/;
-  const {pageHeader, pageUrl, pageLinksRegExp} = crawlTarget;
+  const {
+    pageHeader, 
+    pageUrl, 
+    pageLinksRegExp,
+    idPrefix,
+    dbSeqName
+  } = crawlTarget;
 
   const SAVE_PATH = path.join(BASE_DIR, pageHeader);
 
@@ -170,60 +193,63 @@ const main = async (crawlTarget, resultFile) => {
       fullName
     } = await getLinkNText(person);
     
-    const alreadyDoneImage = await checkSuccess(pageHeader, fullName, SAVE_TYPE.image);
-    const alreadyDoneText = await checkSuccess(pageHeader, fullName, SAVE_TYPE.text);
-    const allDone = alreadyDoneImage && alreadyDoneText;
-    if(allDone){
-      logger.info(`${fullName} save image and text already done!`);
-      continue;
-    }
+    const nextSequence = await getNextSeqId(dbSeqName);
+    const uniqId = genUniqId(idPrefix, nextSequence, fullName)
+    console.log(uniqId)
+    // const alreadyDoneImage = await checkSuccess(pageHeader, fullName, SAVE_TYPE.image);
+    // const alreadyDoneText = await checkSuccess(pageHeader, fullName, SAVE_TYPE.text);
+    // const allDone = alreadyDoneImage && alreadyDoneText;
+    // if(allDone){
+    //   logger.info(`${fullName} save image and text already done!`);
+    //   continue;
+    // }
 
-    const pagePromise = page.context().waitForEvent('page');
-    await link.click({modifiers: ['Control']});
-    const newPage = await pagePromise;
-    newPage.bringToFront();
+    // const pagePromise = page.context().waitForEvent('page');
+    // await link.click({modifiers: ['Control']});
+    // const newPage = await pagePromise;
+    // newPage.bringToFront();
 
-    const tableFound = await waitForPersonPage(newPage, name)
-    if(!tableFound){
-      console.error('[ERROR]no table found:', name)
-      newPage.close();
-      logger.info('processed...', ++processed)
-      continue;
-    }
-    if(!alreadyDoneImage){
-      const result = await getImage(newPage, name);
-      const {imgPath} = result;
-      const imgValid = imgPath !== 'none';
-      result.fullName = fullName;
-      if(imgValid){
-        const saveFileName = `${path.join(SAVE_PATH, fullName)}.webp`;
-        await saveImageFromUrl(imgPath, saveFileName);
-        await addSuccess(pageHeader, fullName, imgPath, ADD_IF_NOT_DUP, SAVE_TYPE.image);
-        logger.info(`${fullName} save image success.`);
-      } else {
-        logger.error(`${fullName} save image failed.`);
-      }
-    } else {
-      logger.info(`${fullName} image already done.`);
-    }
-    if(!alreadyDoneText){
-      const personDataText = await getPersonTable(newPage);
-      logger.info('length of preson data:', personDataText.length);
-      if(personDataText.length > 0){
-        const presonDataFileName = `${path.join(SAVE_PATH, fullName)}.txt`;
-        await savePersonInfo(personDataText, presonDataFileName);
-        await addSuccess(pageHeader, fullName, presonDataFileName, ADD_IF_NOT_DUP, SAVE_TYPE.text);
-        logger.info(`${fullName} save text success.`);
-      } else {
-        logger.error(`${fullName} save text failed.`);
-      }
-    } else {
-      logger.info(`${fullName} text already done.`);
-    }
+    // const tableFound = await waitForPersonPage(newPage, name)
+    // if(!tableFound){
+    //   console.error('[ERROR]no table found:', name)
+    //   newPage.close();
+    //   logger.info('processed...', ++processed)
+    //   continue;
+    // }
+    // if(!alreadyDoneImage){
+    //   const result = await getImage(newPage, name);
+    //   const {imgPath} = result;
+    //   const imgValid = imgPath !== 'none';
+    //   result.fullName = fullName;
+    //   if(imgValid){
+    //     const saveFileName = `${path.join(SAVE_PATH, fullName)}.webp`;
+    //     await saveImageFromUrl(imgPath, saveFileName);
+    //     await addSuccess(pageHeader, fullName, imgPath, ADD_IF_NOT_DUP, SAVE_TYPE.image);
+    //     logger.info(`${fullName} save image success.`);
+    //   } else {
+    //     logger.error(`${fullName} save image failed.`);
+    //   }
+    // } else {
+    //   logger.info(`${fullName} image already done.`);
+    // }
+    // if(!alreadyDoneText){
+    //   const personDataText = await getPersonTable(newPage);
+    //   logger.info('length of preson data:', personDataText.length);
+    //   if(personDataText.length > 0){
+    //     const presonDataFileName = `${path.join(SAVE_PATH, fullName)}.txt`;
+    //     await savePersonInfo(personDataText, presonDataFileName);
+    //     await addSuccess(pageHeader, fullName, presonDataFileName, ADD_IF_NOT_DUP, SAVE_TYPE.text);
+    //     logger.info(`${fullName} save text success.`);
+    //   } else {
+    //     logger.error(`${fullName} save text failed.`);
+    //   }
+    // } else {
+    //   logger.info(`${fullName} text already done.`);
+    // }
 
-    newPage.close();
+    // newPage.close();
 
-    logger.info('processed...', ++processed)
+    // logger.info('processed...', ++processed)
   }
 
   // const personInfo = {};
@@ -259,4 +285,4 @@ const main = async (crawlTarget, resultFile) => {
 }
 
 const RESULT_FILE = 'crawl_wiki.json'
-main(CRAWL_URLS[1], RESULT_FILE)
+main(CRAWL_URLS[0], RESULT_FILE)
