@@ -10,10 +10,21 @@ const crawl_config = require('./crawl_config.json');
 const {
   getCurrentSeqId,
   getNextSeqId,
-  resetNextSeqId
+  resetNextSeqId,
+  getPersonByContentUrl
 } = require('./lib/queries');
+const {getFileHash, getStringHash} = require('./lib/hashLib');
 
-const {BASE_DIR} = crawl_config;
+require('dotenv').config()
+
+const RUN_MODE = process.env.RUN_MODE;
+logger.info('###############################');
+logger.info('## crawl mode is', RUN_MODE);
+logger.info('###############################');
+
+const {
+  BASE_DIR
+} = crawl_config;
 // const SAVE_PATH = './images'
 const HEADERS = /^(출생|국적|본관|신체|학력|가족|병력|데뷔|소속사|링크)$/
 const PERSON_TABLE_HEADERS = /(출생|학력)/
@@ -98,11 +109,11 @@ const getImage = async (page, name) => {
     logger.info('table count = ',await table.count());
     logger.info('image count = ',imgCount);
     const imgLocator = await table.getByRole('img', {timeout: 1000}).nth(1);
-    const imgPath =  await imgLocator.evaluate(ele => ele.src,'',{timeout: 1000});
-    return { name, imgPath };
+    const imgUrl =  await imgLocator.evaluate(ele => ele.src,'',{timeout: 1000});
+    return { name, imgUrl };
   } catch(err) {
     console.error(err);
-    return { name, imgPath: 'none'};
+    return { name, imgUrl: 'none'};
   }
 };
 const savePersonInfo = async(fullText, fname) => {
@@ -167,7 +178,124 @@ const sanitizeFname = (fname) => {
 const genUniqId = (prefix, id, fullName) => {
   return `${prefix}_${id}_${fullName}`;
 }
+const appendStrings = (strArray) => {
+  return strArray.join('\n');
 
+}
+const checkNewContent = async (contentUrl) => {
+  const result = await getPersonByContentUrl(contentUrl);
+  return result.length == 0;
+}
+
+const findPersonTable = async (newPage, name) => {
+  const tableFound = await waitForPersonPage(newPage, name)
+  if(!tableFound){
+    logger.error('[ERROR]no table found:', name)
+  }
+  return tableFound;
+}
+
+const saveImage = async (newPage, name, fullName, saveFileName) => {
+  const result = await getImage(newPage, name);
+  const imgUrl = result.imgUrl;
+  const imgValid = imgUrl !== 'none';
+  if(imgValid){
+    await saveImageFromUrl(imgUrl, saveFileName);
+    // await addSuccess(pageHeader, fullName, imgUrl, ADD_IF_NOT_DUP, SAVE_TYPE.image);
+    logger.info(`${fullName} save image success.`);
+    return {savedFname: saveFileName, imgUrl};
+  } else {
+    logger.error(`${fullName} save image failed.`);
+    return false;
+  }
+}
+
+const getContents = async (newPage) => {
+  try {
+    const personDataText = await getPersonTable(newPage);
+    logger.info('length of person data:', personDataText.length);
+    if(personDataText.length > 0){
+      return personDataText;
+    } else {
+      return false;
+    }
+  } catch(err) {
+    return false; 
+  }
+}
+
+
+const runWithoutOverwrite = async (crawlTarget, page, contentUrl, link, name, fullName) => {
+  const {
+    pageHeader,
+    idPrefix,
+    dbSeqName
+  } = crawlTarget;
+  const isNew = await checkNewContent(contentUrl);
+  logger.info('isNew:', isNew)
+  if(isNew) {
+    const nextSequence = await getNextSeqId(dbSeqName);
+    const uniqId = genUniqId(idPrefix, nextSequence, fullName)
+    const newPage = await openPageWithLink(page, link)
+    const tableFound = await findPersonTable(newPage, name);
+    if(tableFound){
+      const SAVE_PATH = path.join(BASE_DIR, pageHeader);
+      const saveFileName = `${path.join(SAVE_PATH, uniqId)}.webp`;
+      const personDataFileName = `${path.join(SAVE_PATH, uniqId)}.txt`;
+      const contentFromPage = await getContents(newPage);
+      if(contentFromPage){
+        const contentHash = getStringHash(contentFromPage);
+        const {savedFname, imgUrl} = await saveImage(newPage, name, fullName, saveFileName);
+        let imageHash;
+        try {
+          imageHash = await getFileHash(savedFname);
+        } catch(err) {
+          console.error(err);
+          imageHash = 0;
+        }
+        const metaAppended = appendStrings([
+          contentFromPage, 
+          'uniqId', uniqId, 
+          'imageName', savedFname,
+          'imageUrl', imgUrl, 
+          'contentUrl', contentUrl,
+          'contentHash', contentHash,
+          'imageHash', imageHash
+        ])
+        await savePersonInfo(metaAppended, personDataFileName);
+      } 
+      newPage.close();
+    } else {
+      newPage.close();
+      logger.info('processed...', ++processed);
+      return false;
+    }
+  } else {
+    logger.info(`[${RUN_MODE}] content is already done!`)
+    return;
+  }
+  logger.info('processed...', ++processed)
+};
+const runAllOverwrite = () => {};
+const runContentOverwrite = () => {};
+const runImageOverwrite = () => {};
+
+const runCrawl = {
+  'NO_OVERWRITE': runWithoutOverwrite,
+  'CONTENT_OVERWRITE': runContentOverwrite,
+  'IMAGE': runImageOverwrite,
+  'ALL_OVERWRITE': runAllOverwrite
+}
+
+const openPageWithLink = async (page, link) => {
+  const pagePromise = page.context().waitForEvent('page');
+  await link.click({modifiers: ['Control']});
+  const newPage = await pagePromise;
+  newPage.bringToFront();
+  return newPage;
+}
+
+let processed = 0;
 const main = async (crawlTarget, resultFile) => {
   // const PERSON_LIST_REGEXP = /고수/;
   const {
@@ -178,79 +306,109 @@ const main = async (crawlTarget, resultFile) => {
     dbSeqName
   } = crawlTarget;
 
-  const SAVE_PATH = path.join(BASE_DIR, pageHeader);
+  // set image and txt save path
 
+  // open headless browser and goto url
   const page = await openHeadlessBrowser()
   await page.goto(pageUrl, {timeout: 60000})
+  // get all link list
   const personsLocators = await getLinkInList(page, pageLinksRegExp);
 
   logger.info('1. number of persons:', personsLocators.length);
-  let processed = 0;
   for(const person of personsLocators){
     const {
       clickableLink:link, 
       clickableText:name, 
       fullName
     } = await getLinkNText(person);
-    
-    const nextSequence = await getNextSeqId(dbSeqName);
-    const uniqId = genUniqId(idPrefix, nextSequence, fullName)
-    console.log(uniqId)
-    // const alreadyDoneImage = await checkSuccess(pageHeader, fullName, SAVE_TYPE.image);
-    // const alreadyDoneText = await checkSuccess(pageHeader, fullName, SAVE_TYPE.text);
-    // const allDone = alreadyDoneImage && alreadyDoneText;
-    // if(allDone){
-    //   logger.info(`${fullName} save image and text already done!`);
-    //   continue;
-    // }
 
-    // const pagePromise = page.context().waitForEvent('page');
-    // await link.click({modifiers: ['Control']});
-    // const newPage = await pagePromise;
-    // newPage.bringToFront();
-
-    // const tableFound = await waitForPersonPage(newPage, name)
-    // if(!tableFound){
-    //   console.error('[ERROR]no table found:', name)
-    //   newPage.close();
-    //   logger.info('processed...', ++processed)
-    //   continue;
-    // }
-    // if(!alreadyDoneImage){
-    //   const result = await getImage(newPage, name);
-    //   const {imgPath} = result;
-    //   const imgValid = imgPath !== 'none';
-    //   result.fullName = fullName;
-    //   if(imgValid){
-    //     const saveFileName = `${path.join(SAVE_PATH, fullName)}.webp`;
-    //     await saveImageFromUrl(imgPath, saveFileName);
-    //     await addSuccess(pageHeader, fullName, imgPath, ADD_IF_NOT_DUP, SAVE_TYPE.image);
-    //     logger.info(`${fullName} save image success.`);
-    //   } else {
-    //     logger.error(`${fullName} save image failed.`);
-    //   }
-    // } else {
-    //   logger.info(`${fullName} image already done.`);
-    // }
-    // if(!alreadyDoneText){
-    //   const personDataText = await getPersonTable(newPage);
-    //   logger.info('length of preson data:', personDataText.length);
-    //   if(personDataText.length > 0){
-    //     const presonDataFileName = `${path.join(SAVE_PATH, fullName)}.txt`;
-    //     await savePersonInfo(personDataText, presonDataFileName);
-    //     await addSuccess(pageHeader, fullName, presonDataFileName, ADD_IF_NOT_DUP, SAVE_TYPE.text);
-    //     logger.info(`${fullName} save text success.`);
-    //   } else {
-    //     logger.error(`${fullName} save text failed.`);
-    //   }
-    // } else {
-    //   logger.info(`${fullName} text already done.`);
-    // }
-
-    // newPage.close();
-
-    // logger.info('processed...', ++processed)
+    const contentUrl = await link.getAttribute('href');
+    await runCrawl[RUN_MODE](crawlTarget, page, contentUrl, link, name, fullName);
   }
+  // process.exit();
+
+  //   const isNew = await checkNewContent(contentUrl);
+  //   console.log(isNew)
+    
+  //   const nextSequence = await getNextSeqId(dbSeqName);
+  //   const uniqId = genUniqId(idPrefix, nextSequence, fullName)
+
+  //   console.log(uniqId)
+  //   const alreadyDoneImage = await checkSuccess(pageHeader, fullName, SAVE_TYPE.image);
+  //   const alreadyDoneText = await checkSuccess(pageHeader, fullName, SAVE_TYPE.text);
+  //   const allDone = alreadyDoneImage && alreadyDoneText;
+  //   if(allDone){
+  //     logger.info(`${fullName} save image and text already done!`);
+  //     continue;
+  //   }
+
+  //   const pagePromise = page.context().waitForEvent('page');
+  //   await link.click({modifiers: ['Control']});
+  //   const newPage = await pagePromise;
+  //   newPage.bringToFront();
+
+  //   const tableFound = await waitForPersonPage(newPage, name)
+  //   if(!tableFound){
+  //     console.error('[ERROR]no table found:', name)
+  //     newPage.close();
+  //     logger.info('processed...', ++processed)
+  //     continue;
+  //   }
+  //   const saveFileName = `${path.join(SAVE_PATH, uniqId)}.webp`;
+  //   const personDataFileName = `${path.join(SAVE_PATH, uniqId)}.txt`;
+  //   let imgUrl
+
+  //   if(!alreadyDoneImage){
+  //     const result = await getImage(newPage, name);
+  //     imgUrl = result.imgUrl;
+  //     const imgValid = imgUrl !== 'none';
+  //     result.fullName = fullName;
+  //     if(imgValid){
+  //       await saveImageFromUrl(imgUrl, saveFileName);
+  //       await addSuccess(pageHeader, fullName, imgUrl, ADD_IF_NOT_DUP, SAVE_TYPE.image);
+  //       logger.info(`${fullName} save image success.`);
+  //     } else {
+  //       logger.error(`${fullName} save image failed.`);
+  //     }
+  //   } else {
+  //     logger.info(`${fullName} image already done.`);
+  //   }
+  //   if(!alreadyDoneText){
+  //     const personDataText = await getPersonTable(newPage);
+  //     let contentHash, imageHash;
+  //     try {
+  //       contentHash = getStringHash(personDataText);
+  //       imageHash = await getFileHash(saveFileName);
+  //     } catch (err) {
+  //       console.error(err);
+  //       continue;
+  //     }
+  //     logger.info('length of person data:', personDataText.length);
+  //     if(personDataText.length > 0){
+  //       const metaAppended = appendStrings([
+  //         personDataText, 
+  //         'uniqId', uniqId, 
+  //         'imageName', `${uniqId}.webp`, 
+  //         'imageUrl', imgUrl, 
+  //         'contentUrl', contentUrl,
+  //         'contentHash', contentHash,
+  //         'imageHash', imageHash
+
+  //       ])
+  //       await savePersonInfo(metaAppended, personDataFileName);
+  //       await addSuccess(pageHeader, fullName, personDataFileName, ADD_IF_NOT_DUP, SAVE_TYPE.text);
+  //       logger.info(`${fullName} save text success.`);
+  //     } else {
+  //       logger.error(`${fullName} save text failed.`);
+  //     }
+  //   } else {
+  //     logger.info(`${fullName} text already done.`);
+  //   }
+
+  //   newPage.close();
+
+  //   logger.info('processed...', ++processed)
+  // }
 
   // const personInfo = {};
   // let lastKey = 'none';
