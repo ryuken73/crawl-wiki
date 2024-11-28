@@ -182,9 +182,9 @@ const appendStrings = (strArray) => {
   return strArray.join('\n');
 
 }
-const checkNewContent = async (contentUrl) => {
+const dbGetPerson = async (contentUrl) => {
   const result = await getPersonByContentUrl(contentUrl);
-  return result.length == 0;
+  return result.length == 0 ? null : result[0];
 }
 
 const findPersonTable = async (newPage, name) => {
@@ -224,14 +224,14 @@ const getContents = async (newPage) => {
   }
 }
 
-
 const runWithoutOverwrite = async (crawlTarget, page, contentUrl, link, name, fullName) => {
   const {
     pageHeader,
     idPrefix,
     dbSeqName
   } = crawlTarget;
-  const isNew = await checkNewContent(contentUrl);
+  const personDocument = await dbGetPerson(contentUrl);
+  const isNew = personDocument === null;
   logger.info('isNew:', isNew)
   if(isNew) {
     const nextSequence = await getNextSeqId(dbSeqName);
@@ -276,8 +276,20 @@ const runWithoutOverwrite = async (crawlTarget, page, contentUrl, link, name, fu
   }
   logger.info('processed...', ++processed)
 };
-const runAllOverwrite = () => {};
-const runContentOverwrite = () => {};
+const runAllOverwrite = () => {
+
+};
+const runContentOverwrite = async (crawlTarget, page, contentUrl, link, name, fullName) => {
+  const personDocument = await dbGetPerson(contentUrl);
+  const isNew = personDocument === null;
+  if(isNew){
+    // create new content
+    return
+  }
+  
+
+
+};
 const runImageOverwrite = () => {};
 
 const runCrawl = {
