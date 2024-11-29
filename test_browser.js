@@ -102,7 +102,7 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
   //   console.log('item text:', await item.textContent());
   // }
   while(list.length > 0){
-    console.log(list.length)
+    logger.info('list remain:', list.length);
     const listItem = list.shift();
     const {
       firstLink,
@@ -146,9 +146,8 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
       //   'imageHash', imageHash
       // ])
       await saveContentToFile(utilDelBlankLine(contents), contentFname)
-      console.log('contents:')
-      console.log(utilDelBlankLine(contents).length)
-      console.log(imgUrl);
+      logger.info('content heading:', utilDelBlankLine(contents).slice(1,10));
+      logger.info('imgUrl:',imgUrl);
       
       logger.info('[end]', listText)
       browser.closeChildPage();
