@@ -1,5 +1,6 @@
 const path = require('path');
 const {create, setLevel} = require('./lib/logger')();
+const {getFileHash, getStringHash} = require('./lib/hashLib');
 const logger = create({logFile:'crawl_wiki.log'});
 const createBrowser = require('./lib/browser');
 const fileUtil = require('./lib/util');
@@ -25,6 +26,7 @@ const {
   SAVE_PATH,
 } = crawl_config;
 const {
+  appendStrings,
   sanitizeFname,
   utilDelBlankLine,
   utilSaveToFile,
@@ -61,6 +63,9 @@ const getImageFname = (imageId, subDir) => {
 }
 const getContentFnameTemp = (contentId, tempFolder) => {
   return path.join(tempFolder, `${contentId}.txt`)
+}
+const getImageFnameTemp = (imageId, tempFolder) => {
+  return path.join(tempFolder, `${imageId}.txt`)
 }
 
 const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
@@ -100,20 +105,36 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
         logger.error(`move temp file to working failed:${tmpImageName}:${imageFname}`)
         continue
       }
+      const imageHash = await getFileHash(imageFname);
+
       const contentId = await getNextId({personIdPrefix, listText, idType: 'content'})
+      const contentsBlankLineRemoved = utilDelBlankLine(contents);
+
+      const contentDBRecord = appendStrings([
+        'Action', 'INSERT',
+        'contentId', contentId,
+        'contentName', listText,
+        'contentUrl', linkHref,
+        'contentHash', getStringHash(contents),
+        'MetaData', contentsBlankLineRemoved,
+      ])
       const contentFname = getContentFnameTemp(contentId, tempFolder);
-      // const metaAppended = appendStrings([
-      //   contentFromPage, 
-      //   'uniqId', uniqId, 
-      //   'imageName', savedFname,
-      //   'imageUrl', imgUrl, 
-      //   'contentUrl', contentUrl,
-      //   'contentHash', contentHash,
-      //   'imageHash', imageHash
-      // ])
-      await utilSaveToFile(utilDelBlankLine(contents), contentFname)
-      logger.info('content heading:', utilDelBlankLine(contents).slice(1,10));
+      await utilSaveToFile(contentDBRecord, contentFname)
+      logger.info('content first 4 lines:', contentsBlankLineRemoved.split('\n').slice(0,4).join(':'));
+
       logger.info('imgUrl:',imgUrl);
+      const imageDBRecord = appendStrings([
+        'Action', 'INSERT',
+        'imageId', imageId,
+        'contentId', contentId,
+        'imageSubDir', personIdPrefix,
+        'imageName', path.basename(imageFname),
+        'imageUrl', imgUrl,
+        'imageHash', imageHash
+      ])
+      const imageTxt = getImageFnameTemp(imageId, tempFolder);
+      await utilSaveToFile(imageDBRecord, imageTxt)
+
       
       logger.info('[end]', listText)
       browser.closeChildPage();
