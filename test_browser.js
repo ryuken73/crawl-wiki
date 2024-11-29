@@ -152,9 +152,8 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
       logger.info('[end]', listText)
       browser.closeChildPage();
     } catch (err) {
-      console.error(err.message)
+      logger.error(err.message, listText)
       logger.error('fail to process person', listText);
-      console.error('fail to process person', listText);
       browser.closeChildPage();
     }
   }
