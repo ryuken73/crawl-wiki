@@ -1,4 +1,5 @@
 {
   "RUN_MODE_NUMBER": 1,
-  "BASE_DIR": "d:/002.Code/002.node/crawl-wiki/images"
+  "SAVE_PATH": "d:/002.Code/002.node/crawl-wiki/images",
+  "TEMP_PATH": "d:/002.Code/002.node/crawl-wiki/work"
 }
