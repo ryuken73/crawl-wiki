@@ -17,7 +17,8 @@ const WIKI_CATEGORY_IDS = {
   'DOCUMENTS': 'category-문서',
   'CLASSES': 'category-분류',
 }
-const DB_SEQUENCE_NAME = 'person.content_id_seq'
+const DB_CONTENT_SEQUENCE_NAME = 'person.content_id_seq'
+const DB_IMAGE_SEQUENCE_NAME = 'person.image_id_seq'
 // const filterRule = /[0-9]/;
 // const filterRule = /.*/;
 const {
@@ -40,14 +41,12 @@ const CRAWL_START_URLS = [
   }
 ]
 
-const genUniqId = (prefix, id, fullName, idType) => {
-  const type = idType === 'content' ?  "C" : "I";
-  return `${prefix}_${type}_${id}_${fullName}`;
-}
 const getNextId = async (options) => {
   const {personIdPrefix, listText, idType} = options;
-  const dbNextSequence = await dbGetNextSeqId(DB_SEQUENCE_NAME);
-  const uniqId = genUniqId(personIdPrefix, dbNextSequence, listText, idType);
+  const type = idType === 'content' ?  "C" : "I";
+  const dbSeqName = idType === 'content' ? DB_CONTENT_SEQUENCE_NAME:DB_IMAGE_SEQUENCE_NAME;
+  const dbNextSequence = await dbGetNextSeqId(dbSeqName);
+  const uniqId = `${personIdPrefix}_${type}_${dbNextSequence}_${listText}`;
   return uniqId;
 }
 const saveImageToTemp = async (imgBody, listText) => {
@@ -70,9 +69,19 @@ const saveImageToTemp = async (imgBody, listText) => {
       throw err;
   }
 }
+const saveContentToFile = async (content, fname) => {
+  try {
+    return await utilSaveToFile(content, fname)
+  } catch (err) {
+    throw err;
+  }
+}
 
-const getImageFname = (imageId, subDir, listText) => {
+const getImageFname = (imageId, subDir) => {
   return path.join(SAVE_PATH, subDir, `${imageId}.webp`)
+}
+const getContentFname = (contentId, subDir) => {
+  return path.join(SAVE_PATH, subDir, `${contentId}.txt`)
 }
 const renameImageFile = async () => {}
 const dbSaveContent = async () => {}
@@ -93,12 +102,14 @@ const processWikiList = async (browser, list, personIdPrefix) => {
     const {
       firstLink,
       listText,
+      linkHref
     } = await browser.wikiGetListProps(listItem)
     try {
       logger.info('[start]', listText)
       const personPage = await browser.openChildPageByClickLink(firstLink);
       const pageLoaded = await browser.wikiWaitForPersonPage(personPage, listText);
       if(!pageLoaded){
+        logger.error(`page not loaded:${listText}:${linkHref}`)
         continue
       }
       const contents = await browser.wikiGetContents(personPage);
@@ -106,20 +117,32 @@ const processWikiList = async (browser, list, personIdPrefix) => {
 
       const {saveImageResult, tmpImageName} = await saveImageToTemp(imgBody, listText)
       if(saveImageResult === false){
+        logger.error(`save image to temp dir failed:${listText}:${linkHref}`)
         continue
       }
       const imageId = await getNextId({personIdPrefix, listText, idType: 'image'})
       logger.info('imageId =', imageId)
-      const imageFname = getImageFname(imageId, personIdPrefix, listText);
+      const imageFname = getImageFname(imageId, personIdPrefix);
       logger.info(`move file from=${tmpImageName}, to=${imageFname}`)
       const renameSuccess = await utilMoveFile(tmpImageName, imageFname);
       if(renameSuccess === false){
+        logger.error(`move temp file to working failed:${tmpImageName}:${imageFname}`)
         continue
       }
       const contentId = await getNextId({personIdPrefix, listText, idType: 'content'})
-      // await dbSaveContent(contentId)
+      const contentFname = getContentFname(contentId, personIdPrefix);
+      const metaAppended = appendStrings([
+        contentFromPage, 
+        'uniqId', uniqId, 
+        'imageName', savedFname,
+        'imageUrl', imgUrl, 
+        'contentUrl', contentUrl,
+        'contentHash', contentHash,
+        'imageHash', imageHash
+      ])
+      await saveContentToFile(utilDelBlankLine(contents), contentFname)
       console.log('contents:')
-      console.log(utilDelBlankLine(contents))
+      console.log(utilDelBlankLine(contents).length)
       console.log(imgUrl);
       
       logger.info('[end]', listText)
