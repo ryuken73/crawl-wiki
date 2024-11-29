@@ -25,9 +25,11 @@ const {
   SAVE_PATH,
 } = crawl_config;
 const {
+  sanitizeFname,
   utilDelBlankLine,
   utilSaveToFile,
-  utilMoveFile
+  utilMoveFile,
+  saveImageToTemp
 } = fileUtil
 
 const CRAWL_START_URLS = [
@@ -54,47 +56,11 @@ const getNextId = async (options) => {
   }
 }
 
-const saveImageToTemp = async (imgBody, listText, tempFoloer) => {
-  try {
-    const timeStamp = Date.now();
-    const sanitizedFname = sanitizeFname(listText);
-    const fname = `${timeStamp}_${sanitizedFname}.webp`
-    const tempFname = path.join(tempFoloer, fname);
-    const result = await utilSaveToFile(imgBody, tempFname)
-    if(result === true){
-      return {
-        saveImageResult: result,
-        tmpImageName: tempFname
-      }
-    } else {
-      return {
-        saveImageToTemp: false
-      }
-    }
-  } catch (err) {
-      throw err;
-  }
-}
-
-const saveContentToFile = async (content, fname) => {
-  try {
-    return await utilSaveToFile(content, fname)
-  } catch (err) {
-    throw err;
-  }
-}
-
 const getImageFname = (imageId, subDir) => {
   return path.join(SAVE_PATH, subDir, `${imageId}.webp`)
 }
 const getContentFnameTemp = (contentId, tempFolder) => {
   return path.join(tempFolder, `${contentId}.txt`)
-}
-
-const sanitizeFname = (fname) => {
-  const toRemoveChars = /['"() ]/g;
-  const invalidChars = /[\\/:*?"<>\|\-]/g;
-  return fname.replace(toRemoveChars, '').replace(invalidChars, '_').replace(/_+/g, '_');
 }
 
 const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
@@ -145,7 +111,7 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
       //   'contentHash', contentHash,
       //   'imageHash', imageHash
       // ])
-      await saveContentToFile(utilDelBlankLine(contents), contentFname)
+      await utilSaveToFile(utilDelBlankLine(contents), contentFname)
       logger.info('content heading:', utilDelBlankLine(contents).slice(1,10));
       logger.info('imgUrl:',imgUrl);
       
