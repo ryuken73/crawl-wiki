@@ -1,7 +1,9 @@
 node_modules
 images
+work
 crawl_wiki.log
 gemini_api_key.json
 processed.db
 start.sh
 run_*.sh
+a.html
