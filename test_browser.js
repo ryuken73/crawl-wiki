@@ -23,7 +23,6 @@ const DB_IMAGE_SEQUENCE_NAME = 'person.image_id_seq'
 // const filterRule = /.*/;
 const {
   SAVE_PATH,
-  TEMP_PATH
 } = crawl_config;
 const {
   utilDelBlankLine,
@@ -36,24 +35,31 @@ const CRAWL_START_URLS = [
     startPageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
     personIdPrefix: '배우_한국',
     // presonPageLinksRegExp: /.*/, 
-    // pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    personPageLinksRegExp: /감우성/
+    pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    // personPageLinksRegExp: /감우성/
   }
 ]
 
 const getNextId = async (options) => {
-  const {personIdPrefix, listText, idType} = options;
-  const type = idType === 'content' ?  "C" : "I";
-  const dbSeqName = idType === 'content' ? DB_CONTENT_SEQUENCE_NAME:DB_IMAGE_SEQUENCE_NAME;
-  const dbNextSequence = await dbGetNextSeqId(dbSeqName);
-  const uniqId = `${personIdPrefix}_${type}_${dbNextSequence}_${listText}`;
-  return uniqId;
+  try {
+    const {personIdPrefix, listText, idType} = options;
+    const type = idType === 'content' ?  "C" : "I";
+    const dbSeqName = idType === 'content' ? DB_CONTENT_SEQUENCE_NAME:DB_IMAGE_SEQUENCE_NAME;
+    const dbNextSequence = await dbGetNextSeqId(dbSeqName);
+    const sanitizedFname = sanitizeFname(listText);
+    const uniqId = `${personIdPrefix}_${type}_${dbNextSequence}_${sanitizedFname}`;
+    return uniqId;
+  } catch (err) {
+    throw err;
+  }
 }
-const saveImageToTemp = async (imgBody, listText) => {
+
+const saveImageToTemp = async (imgBody, listText, tempFoloer) => {
   try {
     const timeStamp = Date.now();
-    const fname = `${timeStamp}_${listText}.webp`
-    const tempFname = path.join(TEMP_PATH, fname);
+    const sanitizedFname = sanitizeFname(listText);
+    const fname = `${timeStamp}_${sanitizedFname}.webp`
+    const tempFname = path.join(tempFoloer, fname);
     const result = await utilSaveToFile(imgBody, tempFname)
     if(result === true){
       return {
@@ -69,6 +75,7 @@ const saveImageToTemp = async (imgBody, listText) => {
       throw err;
   }
 }
+
 const saveContentToFile = async (content, fname) => {
   try {
     return await utilSaveToFile(content, fname)
@@ -80,11 +87,9 @@ const saveContentToFile = async (content, fname) => {
 const getImageFname = (imageId, subDir) => {
   return path.join(SAVE_PATH, subDir, `${imageId}.webp`)
 }
-const getContentFname = (contentId, subDir) => {
-  return path.join(SAVE_PATH, subDir, `${contentId}.txt`)
+const getContentFnameTemp = (contentId, tempFolder) => {
+  return path.join(tempFolder, `${contentId}.txt`)
 }
-const renameImageFile = async () => {}
-const dbSaveContent = async () => {}
 
 const sanitizeFname = (fname) => {
   const toRemoveChars = /['"() ]/g;
@@ -92,10 +97,10 @@ const sanitizeFname = (fname) => {
   return fname.replace(toRemoveChars, '').replace(invalidChars, '_').replace(/_+/g, '_');
 }
 
-const processWikiList = async (browser, list, personIdPrefix) => {
-  for(let item of list){
-    console.log('item text:', await item.textContent());
-  }
+const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
+  // for(let item of list){
+  //   console.log('item text:', await item.textContent());
+  // }
   while(list.length > 0){
     console.log(list.length)
     const listItem = list.shift();
@@ -115,7 +120,7 @@ const processWikiList = async (browser, list, personIdPrefix) => {
       const contents = await browser.wikiGetContents(personPage);
       const {imgUrl, imgBody} = await browser.wikiGetImageData(personPage);
 
-      const {saveImageResult, tmpImageName} = await saveImageToTemp(imgBody, listText)
+      const {saveImageResult, tmpImageName} = await saveImageToTemp(imgBody, listText, tempFolder)
       if(saveImageResult === false){
         logger.error(`save image to temp dir failed:${listText}:${linkHref}`)
         continue
@@ -130,16 +135,16 @@ const processWikiList = async (browser, list, personIdPrefix) => {
         continue
       }
       const contentId = await getNextId({personIdPrefix, listText, idType: 'content'})
-      const contentFname = getContentFname(contentId, personIdPrefix);
-      const metaAppended = appendStrings([
-        contentFromPage, 
-        'uniqId', uniqId, 
-        'imageName', savedFname,
-        'imageUrl', imgUrl, 
-        'contentUrl', contentUrl,
-        'contentHash', contentHash,
-        'imageHash', imageHash
-      ])
+      const contentFname = getContentFnameTemp(contentId, tempFolder);
+      // const metaAppended = appendStrings([
+      //   contentFromPage, 
+      //   'uniqId', uniqId, 
+      //   'imageName', savedFname,
+      //   'imageUrl', imgUrl, 
+      //   'contentUrl', contentUrl,
+      //   'contentHash', contentHash,
+      //   'imageHash', imageHash
+      // ])
       await saveContentToFile(utilDelBlankLine(contents), contentFname)
       console.log('contents:')
       console.log(utilDelBlankLine(contents).length)
@@ -166,12 +171,27 @@ async function main(crawlInfo) {
     personPageLinksRegExp,
     personIdPrefix
   } = crawlInfo
+  let tempFolder;
+  try {
+    const folderCreated = await fileUtil.prepareTempFoler();
+    if(folderCreated){
+      tempFolder = folderCreated
+      logger.info('working folder =', tempFolder);
+    } else {
+      logger.error('error to create temp folder. exit program..', folderCreated)
+      process.exit();
+    }
+  } catch (err) {
+    logger.error('error to create temp folder. exit program..')
+    process.exit();
+  }
+
   const browser = await createBrowser(startPageUrl, options);
   const list = await browser.getListWithLinkInArray({
     regexp: personPageLinksRegExp,
     // id: WIKI_CATEGORY_IDS.DOCUMENTS
   });
-  await processWikiList(browser, list, personIdPrefix)
+  await processWikiList(browser, list, personIdPrefix, tempFolder)
 
   console.log('done')
   // const buttons = await browser.getButtonsInLocatorArray();
@@ -187,7 +207,7 @@ async function main(crawlInfo) {
       regexp: personPageLinksRegExp,
       // id: WIKI_CATEGORY_IDS.DOCUMENTS
     });
-    await processWikiList(browser, list, personIdPrefix)
+    await processWikiList(browser, list, personIdPrefix, tempFolder)
   }
   process.exit();
 }
