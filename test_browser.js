@@ -1,7 +1,7 @@
 const path = require('path');
 const {create, setLevel} = require('./lib/logger')();
 const {getFileHash, getStringHash} = require('./lib/hashLib');
-const logger = create({logFile:'crawl_wiki.log'});
+// const logger = create({logFile:'crawl_wiki.log'});
 const createBrowser = require('./lib/browser');
 const fileUtil = require('./lib/util');
 const crawl_config = require('./crawl_config.json');
@@ -151,6 +151,8 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
   return
 }
 
+let logger;
+
 async function main(crawlInfo) {
   const options = {
     savePath: SAVE_PATH,
@@ -165,15 +167,16 @@ async function main(crawlInfo) {
     const folderCreated = await fileUtil.prepareTempFoler();
     if(folderCreated){
       tempFolder = folderCreated
-      logger.info('working folder =', tempFolder);
+      console.log('working folder =', tempFolder);
     } else {
-      logger.error('error to create temp folder. exit program..', folderCreated)
+      console.error('error to create temp folder. exit program..', folderCreated)
       process.exit();
     }
   } catch (err) {
-    logger.error('error to create temp folder. exit program..')
+    console.error('error to create temp folder. exit program..')
     process.exit();
   }
+  logger = create({logFile:path.join(tempFolder, 'crawl_wiki.log')});
 
   const browser = await createBrowser(startPageUrl, options);
   const list = await browser.getListWithLinkInArray({
