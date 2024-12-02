@@ -26,12 +26,14 @@ const {
   SAVE_PATH,
 } = crawl_config;
 const {
-  appendStrings,
+  // appendStrings,
   sanitizeFname,
-  utilDelBlankLine,
-  utilSaveToFile,
-  utilMoveFile,
-  saveImageToTemp
+  // utilDelBlankLine,
+  // utilSaveToFile,
+  // utilMoveFile,
+  saveImageToTemp,
+  wikiSaveContentToFile,
+  wikiSaveImageMetaToFile
 } = fileUtil
 
 const CRAWL_START_URLS = [
@@ -63,9 +65,6 @@ const getImageFname = (imageId, subDir) => {
 }
 const getContentFnameTemp = (contentId, tempFolder) => {
   return path.join(tempFolder, `${contentId}.txt`)
-}
-const getImageFnameTemp = (imageId, tempFolder) => {
-  return path.join(tempFolder, `${imageId}.json`)
 }
 
 const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
@@ -102,52 +101,43 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
         continue
       }
 
+      // save content to text file in temp foler
+      const contentId = await getNextId({personIdPrefix, listText, idType: 'content'})
+      const contentFname = getContentFnameTemp(contentId, tempFolder);
+      const contentsBlankLineRemoved = await wikiSaveContentToFile(contentFname, {
+        action: 'INSERT',
+        contentId,
+        listText,
+        linkHref,
+        contents
+      });
+      logger.info('content first 4 lines:', contentsBlankLineRemoved.split('\n').slice(0,4).join(':'));
+
       // get next imageId and make full image path and name
       const imageId = await getNextId({personIdPrefix, listText, idType: 'image'})
       logger.info('imageId =', imageId)
       const subDir = personIdPrefix;
-      const imageFname = getImageFname(imageId, subDir);
+      // const imageFname = getImageFname(imageId, subDir);
 
       // move temp image to permanent directory
-      logger.info(`move file from=${tmpImageName}, to=${imageFname}`)
-      const renameSuccess = await utilMoveFile(tmpImageName, imageFname);
-      if(renameSuccess === false){
-        logger.error(`move temp file to working failed:${tmpImageName}:${imageFname}`)
-        failure++;
-        continue
-      }
-  
-      // save content to text file
-      const contentId = await getNextId({personIdPrefix, listText, idType: 'content'})
-      const contentsBlankLineRemoved = utilDelBlankLine(contents);
-
-      const contentDBRecord = appendStrings([
-        'Action', 'INSERT',
-        'contentId', contentId,
-        'contentName', listText,
-        'contentUrl', linkHref,
-        'contentHash', getStringHash(contents),
-        'MetaData', contentsBlankLineRemoved,
-      ])
-      const contentFname = getContentFnameTemp(contentId, tempFolder);
-      await utilSaveToFile(contentDBRecord, contentFname)
-      logger.info('content first 4 lines:', contentsBlankLineRemoved.split('\n').slice(0,4).join(':'));
+      // logger.info(`move file from=${tmpImageName}, to=${imageFname}`)
+      // const renameSuccess = await utilMoveFile(tmpImageName, imageFname);
+      // if(renameSuccess === false){
+      //   logger.error(`move temp file to working failed:${tmpImageName}:${imageFname}`)
+      //   failure++;
+      //   continue
+      // }
 
       // save image meta to text file
       logger.info('imgUrl:',imgUrl);
-      const imageHash = await getFileHash(imageFname);
-      const imageDBRecord = {
-        'Action': 'INSERT',
-        'imageId': imageId,
-        'contentId': contentId,
-        'imageSubDir': subDir,
-        'imageName': path.basename(imageFname),
-        'imageUrl': imgUrl,
-        'imageHash': imageHash
-      }
-      const imageJsonFile = getImageFnameTemp(imageId, tempFolder);
-      await utilSaveToFile(JSON.stringify(imageDBRecord), imageJsonFile)
-
+      await wikiSaveImageMetaToFile(tmpImageName, {
+        action: 'INSERT',
+        imageId,
+        contentId,
+        subDir,
+        imgUrl,
+        tempFolder
+      })
       success++
       logger.info('[end]', listText)
       browser.closeChildPage();
