@@ -58,7 +58,7 @@ const getImageFname = (imageId, subDir) => {
   return path.join(SAVE_PATH, subDir, `${imageId}.webp`)
 }
 const getContentFnameTemp = (contentId, tempFolder) => {
-  return path.join(tempFolder, `${contentId}.txt`)
+  return path.join(tempFolder, `${contentId}.json`)
 }
 
 const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
