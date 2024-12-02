@@ -65,15 +65,17 @@ const getContentFnameTemp = (contentId, tempFolder) => {
   return path.join(tempFolder, `${contentId}.txt`)
 }
 const getImageFnameTemp = (imageId, tempFolder) => {
-  return path.join(tempFolder, `${imageId}.txt`)
+  return path.join(tempFolder, `${imageId}.json`)
 }
 
 const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
-  // for(let item of list){
-  //   console.log('item text:', await item.textContent());
-  // }
+  let success=0; 
+  let failure=0; 
+  let processed=0;
   while(list.length > 0){
-    logger.info('list remain:', list.length);
+    // logger.info('list remain:', list.length);
+    processed = failure + success;
+    logger.info(`total: ${list.length}, processed: ${processed}, success: ${success}, failure: ${failure}`)
     const listItem = list.shift();
     const {
       firstLink,
@@ -86,27 +88,36 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
       const pageLoaded = await browser.wikiWaitForPersonPage(personPage, listText);
       if(!pageLoaded){
         logger.error(`page not loaded:${listText}:${linkHref}`)
+        failure++;
         continue
       }
+      // get contents, image url and image body
       const contents = await browser.wikiGetContents(personPage);
       const {imgUrl, imgBody} = await browser.wikiGetImageData(personPage);
 
+      // save image to temp folder
       const {saveImageResult, tmpImageName} = await saveImageToTemp(imgBody, listText, tempFolder)
       if(saveImageResult === false){
         logger.error(`save image to temp dir failed:${listText}:${linkHref}`)
         continue
       }
+
+      // get next imageId and make full image path and name
       const imageId = await getNextId({personIdPrefix, listText, idType: 'image'})
       logger.info('imageId =', imageId)
-      const imageFname = getImageFname(imageId, personIdPrefix);
+      const subDir = personIdPrefix;
+      const imageFname = getImageFname(imageId, subDir);
+
+      // move temp image to permanent directory
       logger.info(`move file from=${tmpImageName}, to=${imageFname}`)
       const renameSuccess = await utilMoveFile(tmpImageName, imageFname);
       if(renameSuccess === false){
         logger.error(`move temp file to working failed:${tmpImageName}:${imageFname}`)
+        failure++;
         continue
       }
-      const imageHash = await getFileHash(imageFname);
-
+  
+      // save content to text file
       const contentId = await getNextId({personIdPrefix, listText, idType: 'content'})
       const contentsBlankLineRemoved = utilDelBlankLine(contents);
 
@@ -122,25 +133,28 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
       await utilSaveToFile(contentDBRecord, contentFname)
       logger.info('content first 4 lines:', contentsBlankLineRemoved.split('\n').slice(0,4).join(':'));
 
+      // save image meta to text file
       logger.info('imgUrl:',imgUrl);
-      const imageDBRecord = appendStrings([
-        'Action', 'INSERT',
-        'imageId', imageId,
-        'contentId', contentId,
-        'imageSubDir', personIdPrefix,
-        'imageName', path.basename(imageFname),
-        'imageUrl', imgUrl,
-        'imageHash', imageHash
-      ])
-      const imageTxt = getImageFnameTemp(imageId, tempFolder);
-      await utilSaveToFile(imageDBRecord, imageTxt)
+      const imageHash = await getFileHash(imageFname);
+      const imageDBRecord = {
+        'Action': 'INSERT',
+        'imageId': imageId,
+        'contentId': contentId,
+        'imageSubDir': subDir,
+        'imageName': path.basename(imageFname),
+        'imageUrl': imgUrl,
+        'imageHash': imageHash
+      }
+      const imageJsonFile = getImageFnameTemp(imageId, tempFolder);
+      await utilSaveToFile(JSON.stringify(imageDBRecord), imageJsonFile)
 
-      
+      success++
       logger.info('[end]', listText)
       browser.closeChildPage();
     } catch (err) {
       logger.error(err.message, listText)
       logger.error('fail to process person', listText);
+      failure++;
       browser.closeChildPage();
     }
   }
