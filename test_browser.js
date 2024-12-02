@@ -1,7 +1,5 @@
 const path = require('path');
 const {create, setLevel} = require('./lib/logger')();
-const {getFileHash, getStringHash} = require('./lib/hashLib');
-// const logger = create({logFile:'crawl_wiki.log'});
 const createBrowser = require('./lib/browser');
 const fileUtil = require('./lib/util');
 const crawl_config = require('./crawl_config.json');
@@ -26,11 +24,7 @@ const {
   SAVE_PATH,
 } = crawl_config;
 const {
-  // appendStrings,
   sanitizeFname,
-  // utilDelBlankLine,
-  // utilSaveToFile,
-  // utilMoveFile,
   saveImageToTemp,
   wikiSaveContentToFile,
   wikiSaveImageMetaToFile
