@@ -148,9 +148,6 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
 let logger;
 
 async function main(crawlInfo) {
-  const options = {
-    savePath: SAVE_PATH,
-  }
   const {
     startPageUrl,
     personPageLinksRegExp,
@@ -171,6 +168,10 @@ async function main(crawlInfo) {
     process.exit();
   }
   logger = create({logFile:path.join(tempFolder, 'crawl_wiki.log')});
+  const options = {
+    savePath: SAVE_PATH,
+    logger
+  }
 
   const browser = await createBrowser(startPageUrl, options);
   const list = await browser.getListWithLinkInArray({
