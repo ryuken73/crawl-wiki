@@ -74,6 +74,11 @@ fsevents@2.3.2:
   resolved "https://registry.yarnpkg.com/fsevents/-/fsevents-2.3.2.tgz#8a526f78b8fdf4623b709e0b975c52c24c02fd1a"
   integrity sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==
 
+is-webp@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/is-webp/-/is-webp-2.0.0.tgz#ffedde6d5d3526b1b918507df1f5d408d31f46d8"
+  integrity sha512-IHKBowSO+VNk82mKN5EOocEd97Q7tFDqupVhHZOsp/mKEB+ZO5BtmVfbXh0cH//QOsF1ldioXSj4E+QHrEY64g==
+
 mime-db@1.52.0:
   version "1.52.0"
   resolved "https://registry.yarnpkg.com/mime-db/-/mime-db-1.52.0.tgz#bbabcdc02859f4987301c856e3387ce5ec43bf70"
