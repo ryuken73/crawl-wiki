@@ -8,6 +8,9 @@ const {
   dbIsDuplicateRecord
 } = require('./lib/queries');
 
+require('dotenv').config()
+const RUN_MODE = process.env.RUN_MODE;
+
 const WIKI_URL = 'https://namu.wiki'
 const URL = 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%ED%95%9C%EA%B5%AD%20%EC%97%AC%EC%84%B1%20%EB%AA%A8%EB%8D%B8';
 const URL_2000 = 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:2000%EB%85%84%20%EC%B6%9C%EC%83%9D'
@@ -37,7 +40,7 @@ const CRAWL_START_URLS = [
     personIdPrefix: '배우_한국',
     // presonPageLinksRegExp: /.*/, 
     // pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    personPageLinksRegExp: /강승원/
+    personPageLinksRegExp: /공명/
   }
 ]
 
@@ -167,19 +170,21 @@ async function main(crawlInfo) {
     personPageLinksRegExp,
     personIdPrefix
   } = crawlInfo
-  let tempFolder;
-  try {
-    const folderCreated = await fileUtil.prepareTempFoler();
-    if(folderCreated){
-      tempFolder = folderCreated
-      console.log('working folder =', tempFolder);
-    } else {
-      console.error('error to create temp folder. exit program..', folderCreated)
+  let tempFolder = fileUtil.getDefaultTempFolder();
+  if(RUN_MODE !== 'TEMP'){
+    try {
+      const folderCreated = await fileUtil.prepareTempFoler();
+      if(folderCreated){
+        tempFolder = folderCreated
+        console.log('working folder =', tempFolder);
+      } else {
+        console.error('error to create temp folder. exit program..', folderCreated)
+        process.exit();
+      }
+    } catch (err) {
+      console.error('error to create temp folder. exit program..')
       process.exit();
     }
-  } catch (err) {
-    console.error('error to create temp folder. exit program..')
-    process.exit();
   }
   logger = create({logFile:path.join(tempFolder, 'crawl_wiki.log')});
   const options = {
