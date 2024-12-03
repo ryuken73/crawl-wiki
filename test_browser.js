@@ -4,7 +4,8 @@ const createBrowser = require('./lib/browser');
 const fileUtil = require('./lib/util');
 const crawl_config = require('./crawl_config.json');
 const {
-  dbGetNextSeqId
+  dbGetNextSeqId,
+  dbIsDuplicateRecord
 } = require('./lib/queries');
 
 const WIKI_URL = 'https://namu.wiki'
@@ -35,8 +36,8 @@ const CRAWL_START_URLS = [
     startPageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
     personIdPrefix: '배우_한국',
     // presonPageLinksRegExp: /.*/, 
-    pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    // personPageLinksRegExp: /감우성/
+    // pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    personPageLinksRegExp: /강승원/
   }
 ]
 
@@ -64,11 +65,12 @@ const getContentFnameTemp = (contentId, tempFolder) => {
 const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
   let success=0; 
   let failure=0; 
+  let duplicate=0;
   let processed=0;
   while(list.length > 0){
     // logger.info('list remain:', list.length);
     processed = failure + success;
-    logger.info(`total: ${list.length}, processed: ${processed}, success: ${success}, failure: ${failure}`)
+    logger.info(`total: ${list.length}, processed: ${processed}, success: ${success}, failure: ${failure}, duplicate: ${duplicate}`)
     const listItem = list.shift();
     const {
       firstLink,
@@ -77,6 +79,18 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
     } = await browser.wikiGetListProps(listItem)
     try {
       logger.info('[start]', listText)
+      const alreadCrawled = await dbIsDuplicateRecord(linkHref);
+      if(alreadCrawled){
+        logger.info('already exists in DB:', listText);
+        duplicate++;
+        continue;
+      }
+    } catch (err) {
+      logger.error(err.message, listText)
+      logger.error('fail to check already crawled', listText);
+      failure++;
+    }
+    try {
       const personPage = await browser.openChildPageByClickLink(firstLink);
       const pageLoaded = await browser.wikiWaitForPersonPage(personPage, listText);
       if(!pageLoaded){
