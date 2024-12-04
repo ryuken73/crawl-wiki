@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const basePath = 'd:/002.Code/002.node/crawl-wiki/images/가수/한국';
+const basePath = 'd:/002.Code/002.node/crawl-wiki/images/한국';
 
 const sanitizeFname = (fname) => {
   const toRemoveChars = /['"() ]/g;

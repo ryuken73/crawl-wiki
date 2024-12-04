@@ -42,6 +42,7 @@ const CRAWL_START_URLS = [
     pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
     // personPageLinksRegExp: /공명/
     // personPageLinksRegExp: /김기현/
+    // personPageLinksRegExp: /박수영/
   }
 ]
 
@@ -78,9 +79,11 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
     const listItem = list.shift();
     const {
       firstLink,
-      listText,
+      listText: nameFromList,
       linkHref
     } = await browser.wikiGetListProps(listItem)
+    const nameFromHref = decodeURI(linkHref.split('/').pop()).replace('(','_').replace(')', '');
+    const listText = nameFromList === nameFromHref ? nameFromList: nameFromHref;
     try {
       logger.info('[start]', listText)
       const alreadCrawled = await dbIsDuplicateRecord(linkHref);
@@ -154,6 +157,7 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
       logger.info('[end]', listText)
       browser.closeChildPage();
     } catch (err) {
+      // logger.error(err)
       logger.error(err.message, listText)
       logger.error('fail to process person', listText);
       failure++;
