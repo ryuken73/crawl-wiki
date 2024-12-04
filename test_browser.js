@@ -39,8 +39,9 @@ const CRAWL_START_URLS = [
     startPageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
     personIdPrefix: '배우_한국',
     // presonPageLinksRegExp: /.*/, 
-    // pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    personPageLinksRegExp: /공명/
+    pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    // personPageLinksRegExp: /공명/
+    // personPageLinksRegExp: /김기현/
   }
 ]
 

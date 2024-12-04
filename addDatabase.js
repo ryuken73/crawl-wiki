@@ -17,7 +17,7 @@ const {
 } = require('./lib/queries');
 
 const BASE_FOLDER = 'D:/002.Code/002.node/crawl-wiki/work';
-const WORKING_FOLDER_NAME = '2024-12-03 11.47.42';
+const WORKING_FOLDER_NAME = '2024-12-04 13.15.33';
 const BASE_IMAGE_FOLDER = 'D:/002.Code/002.node/crawl-wiki/images';
 
 async function main(){
