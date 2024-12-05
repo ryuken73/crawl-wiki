@@ -4,7 +4,7 @@ const {create, setLevel} = require('./lib/logger')();
 const {
   utilReadJsonFile,
   utilGetJsonWebpFileList,
-  utilIsWebpFile,
+  utilGetImageType,
   utilMoveFile,
   wikiSeparateFileType,
   wikiGetNameFromFname,
@@ -16,8 +16,11 @@ const {
   dbInsertImage
 } = require('./lib/queries');
 
+require('dotenv').config()
+const SRC_FOLDER = process.env.SRC_FOLDER;
+
 const BASE_FOLDER = 'D:/002.Code/002.node/crawl-wiki/work';
-const WORKING_FOLDER_NAME = '2024-12-04 13.15.33';
+const WORKING_FOLDER_NAME = SRC_FOLDER || '2024-12-04 13.15.33';
 const BASE_IMAGE_FOLDER = 'D:/002.Code/002.node/crawl-wiki/images';
 
 async function main(){
@@ -71,9 +74,10 @@ async function main(){
     const imageJson = await utilReadJsonFile(imageFile)
     const webpFile = webpFileWithName[0];
     try {
-      if(!await utilIsWebpFile(webpFile)){
+      const type = await utilGetImageType(webpFile);
+      if(type === false){
         // throw new Error(`${webpFile} is not valid webp file type`);
-        logger.error(`${webpFile} is not valid webp file type`);
+        logger.error(`${webpFile} is not webp/jpg file type`);
         throw new Error('INVALID_WEBP');
       }
       const resultContent = await dbInsertContent(contentJson);
