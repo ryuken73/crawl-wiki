@@ -28,7 +28,7 @@ module.exports = {
     }
   },
   schemaLong: {
-    "description": "JSONize wiki persion contents in short format",
+    "description": "JSONize wiki persion contents in long format",
     "type": "array",
     "items": {
       "type": "object",
