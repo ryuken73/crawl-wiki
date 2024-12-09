@@ -1,7 +1,13 @@
 const {createChat} = require('./lib/gemini_for_wiki');
-const {dbSelectContentByChunk} = require('./lib/queries')
+const {dbSelectContentByChunk} = require('./lib/queries');
+const {schemaShort, schemaLong} = require('./gemini_json_schema');
 
 const RULE_INSTRUCTION = `
+  앞으로 입력되는 json array의 additional_info_raw를 json으로 만들어서 출력 json의 addition_info로 만들어줘
+  content_id key는 입력의 값을 그대로 사용해줘
+
+`
+const RULE_INSTRUCTION_FOR_NON_SCHEMA = `
   앞으로 입력되는 json array의 additional_info_raw를 json으로 만들어서 출력의 additional_info key에 넣어줘
   출력 sample이야
   {
@@ -68,14 +74,20 @@ const RULE_INSTRUCTION = `
 async function main () {
   const options = {
     model: 'flash-8B',
-    systemInstruction: ''
+    systemInstruction: '',
+    generationConfig: {
+      temperature: 0.9,
+      responseMimeType:'application/json',
+      responseSchema: schemaLong
+    }
   }
   const {setupChatRule, requestToJson} = await createChat(options);
   await setupChatRule(RULE_INSTRUCTION);
 
   const sql = `
     select content_id, additional_info_raw
-    from person.contents
+    from person.contents 
+    where uploaded_at < '2024-12-03 15:23:30.655655'
   `
   const getNextChunk = await dbSelectContentByChunk(sql);
   const rows = await getNextChunk(5);
