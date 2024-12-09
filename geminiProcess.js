@@ -3,9 +3,8 @@ const {dbSelectContentByChunk} = require('./lib/queries');
 const {schemaShort, schemaLong} = require('./gemini_json_schema');
 
 const RULE_INSTRUCTION = `
-  앞으로 입력되는 json array의 additional_info_raw를 json으로 만들어서 출력 json의 addition_info로 만들어줘
-  content_id key는 입력의 값을 그대로 사용해줘
-
+  앞으로 입력되는 json array의 additional_info_raw를 json으로 만들어서 출력 json의 addition_info로 만든다.
+  content_id key는 입력의 값을 그대로 사용한다.
 `
 const RULE_INSTRUCTION_FOR_NON_SCHEMA = `
   앞으로 입력되는 json array의 additional_info_raw를 json으로 만들어서 출력의 additional_info key에 넣어줘
