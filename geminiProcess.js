@@ -1,5 +1,11 @@
+const fs = require('fs');
+const path = require('path');
 const {createChat} = require('./lib/gemini_for_wiki');
-const {dbSelectContentByChunk} = require('./lib/queries');
+const {
+  dbBeginTx,
+  dbGetCursor, 
+  dbTXUpdateAdditionalInfo,
+} = require('./lib/queries');
 const {schemaShort, schemaLong} = require('./gemini_json_schema');
 
 const RULE_INSTRUCTION = `
@@ -70,7 +76,22 @@ const RULE_INSTRUCTION_FOR_NON_SCHEMA = `
   이 프롬프트의 결과는 그냥 'instruction setup done'으로 보내줘
 `
 
+const appendResultToFile = async (fname, data) => {
+  try {
+    const result = fs.promises.appendFile(fname, data)
+    return result;
+  } catch (err) {
+    console.error(err.stack)
+    throw new Error('error to append result to file')
+  }
+}
+const TEMP_DIR = 'd:/002.Code/002.node/crawl-wiki/work/temp';
+const LOG_FNAME = `${Date.now()}.log`;
+const NUMBER_OF_CHUNKS = 3;
+
 async function main () {
+  const logFile = path.join(TEMP_DIR, LOG_FNAME);
+  console.log('log file is', logFile);
   const options = {
     model: 'flash-8B',
     systemInstruction: '',
@@ -86,12 +107,56 @@ async function main () {
   const sql = `
     select content_id, additional_info_raw
     from person.contents 
-    where uploaded_at < '2024-12-03 15:23:30.655655'
+    order by content_id desc
   `
-  const getNextChunk = await dbSelectContentByChunk(sql);
-  const rows = await getNextChunk(5);
-  const result = await requestToJson(JSON.stringify(rows));
-  console.log(result);
+  // const {getNextChunk, client} = await dbSelectContentByChunk(sql);
+  const cursorName = 'setAdditional_info';
+  const {
+    getNextChunk, 
+    cursorBegin,
+    cursorQuery,
+    cursorCommit, 
+    cursorRollback, 
+    cursorClose, 
+  } = await dbGetCursor(cursorName, sql);
+  // await cursorBegin();
+  let processed = 0;
+  
+  while(true){
+    const rows = await getNextChunk(NUMBER_OF_CHUNKS, sql);
+    // console.log(rows);
+    if(rows.length === 0){
+      break;
+    }
+    const results = await requestToJson(JSON.stringify(rows));
+    await appendResultToFile(logFile, results);
+    const resultsArray = JSON.parse(results);
+    for(let result of resultsArray){
+      const {content_id, additional_info} = result;
+      console.log('update DB:', content_id, additional_info["이름"])
+      let txRollback, txRelease;
+      try {
+        const {txQuery, txCommit, txRollback: rollback, txRelease: release} = await dbBeginTx();
+        txRollback = rollback;
+        txRelease = release;
+        // const dbResult = await dbTXUpdateAdditionalInfo(content_id, additional_info, cursorQuery)
+        const dbResult = await dbTXUpdateAdditionalInfo(content_id, additional_info, txQuery);
+        console.log('update DB Count:',dbResult.rowCount);
+        txCommit();
+      } catch (err) {
+        console.error(err.stack);
+        await txRollback()
+      } finally {
+        await txRelease();
+      }
+      // await cursorCommit();
+    }
+    processed += NUMBER_OF_CHUNKS;
+    console.log('get next chunk....processed =', processed)
+  }
+  await cursorCommit();
+  await cursorClose();
+  console.log('done');
 }
 
 main()
