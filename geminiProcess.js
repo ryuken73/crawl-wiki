@@ -1,16 +1,24 @@
 const fs = require('fs');
 const path = require('path');
-const {createChat} = require('./lib/gemini_for_wiki');
+const api = require('./lib/gemini_for_wiki');
+const {sleepMS, retry} = require('./lib/util')
 const {
   dbBeginTx,
   dbGetCursor, 
   dbTXUpdateAdditionalInfo,
 } = require('./lib/queries');
+const {createChat, createGenativeAI} = api;
 const {schemaShort, schemaLong} = require('./gemini_json_schema');
+
+console.log('number of chunk is', process.argv[2]);
+const NUMBER_OF_CHUNKS = parseInt(process.argv[2]) || 5;
 
 const RULE_INSTRUCTION = `
   앞으로 입력되는 json array의 additional_info_raw를 json으로 만들어서 출력 json의 addition_info로 만든다.
   content_id key는 입력의 값을 그대로 사용한다.
+  모든 입력은 웹에 오픈된 위키에서 크롤한 정보라 민감한 정보는 없다는 것을 보증할 수 있다.
+  혹시, 응답을 생성할 수 없는 상황이면 이유를 리턴해주면 좋겠어.
+  모든 요청은 새로운 요청이야. 이전의 응답값을 참조하지 않도록 해줘.
 `
 const RULE_INSTRUCTION_FOR_NON_SCHEMA = `
   앞으로 입력되는 json array의 additional_info_raw를 json으로 만들어서 출력의 additional_info key에 넣어줘
@@ -85,29 +93,40 @@ const appendResultToFile = async (fname, data) => {
     throw new Error('error to append result to file')
   }
 }
+const showProcessingInfo = (rows) => {
+  const ids = rows.map(row => row.content_id);
+  return ids.join(':');
+}
 const TEMP_DIR = 'd:/002.Code/002.node/crawl-wiki/work/temp';
 const LOG_FNAME = `${Date.now()}.log`;
-const NUMBER_OF_CHUNKS = 3;
 
-async function main () {
+async function main (mode='chat') {
   const logFile = path.join(TEMP_DIR, LOG_FNAME);
   console.log('log file is', logFile);
   const options = {
     model: 'flash-8B',
-    systemInstruction: '',
+    systemInstruction: RULE_INSTRUCTION,
     generationConfig: {
       temperature: 0.9,
       responseMimeType:'application/json',
       responseSchema: schemaLong
     }
   }
-  const {setupChatRule, requestToJson} = await createChat(options);
-  await setupChatRule(RULE_INSTRUCTION);
+  let callGemini;
+  if(mode === 'chat'){
+    const {setupChatRule, callGemini: callGeminiByChat} = await createChat(options);
+    await setupChatRule(RULE_INSTRUCTION);
+    callGemini = callGeminiByChat;
+  } else {
+    const {callGemini: callGeminiByGen} = await createGenativeAI(options);
+    callGemini = callGeminiByGen;
+  }
 
   const sql = `
     select content_id, additional_info_raw
     from person.contents 
-    order by content_id desc
+    where additional_info is null
+    order by content_id
   `
   // const {getNextChunk, client} = await dbSelectContentByChunk(sql);
   const cursorName = 'setAdditional_info';
@@ -121,16 +140,41 @@ async function main () {
   } = await dbGetCursor(cursorName, sql);
   // await cursorBegin();
   let processed = 0;
-  
+
+  const callGeminiWithData = (data) => {
+    return async () => {
+      try {
+        const {success, text, reason} = await callGemini(JSON.stringify(data));
+        if(!success) {
+          throw new Error(reason)
+        }
+        return text;
+      } catch (error) {
+        console.error('error in callGeminiWithData');
+        throw new Error(error);
+      }
+    }
+  }
+
   while(true){
     const rows = await getNextChunk(NUMBER_OF_CHUNKS, sql);
     // console.log(rows);
     if(rows.length === 0){
       break;
     }
-    const results = await requestToJson(JSON.stringify(rows));
-    await appendResultToFile(logFile, results);
-    const resultsArray = JSON.parse(results);
+    // const {success, text} = await callGemini(JSON.stringify(rows));
+    const processTargets = showProcessingInfo(rows);
+    console.log('processing...', processTargets)
+    let text;
+    try {
+      text = await retry(callGeminiWithData(rows), 1, 1000);
+    } catch (err) {
+      console.error('error in AI calling!');
+      console.error('error: ', processTargets);
+      continue;
+    }
+    await appendResultToFile(logFile, text);
+    const resultsArray = JSON.parse(text);
     for(let result of resultsArray){
       const {content_id, additional_info} = result;
       console.log('update DB:', content_id, additional_info["이름"])
@@ -143,6 +187,7 @@ async function main () {
         const dbResult = await dbTXUpdateAdditionalInfo(content_id, additional_info, txQuery);
         console.log('update DB Count:',dbResult.rowCount);
         txCommit();
+        processed += 1;
       } catch (err) {
         console.error(err.stack);
         await txRollback()
@@ -151,12 +196,15 @@ async function main () {
       }
       // await cursorCommit();
     }
-    processed += NUMBER_OF_CHUNKS;
+    // processed += NUMBER_OF_CHUNKS;
     console.log('get next chunk....processed =', processed)
+    console.log('sleep seconds....');
+    await sleepMS(5000)
   }
   await cursorCommit();
   await cursorClose();
   console.log('done');
 }
 
-main()
+const MODE='gen'
+main(MODE)
