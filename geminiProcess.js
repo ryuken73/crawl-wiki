@@ -157,7 +157,7 @@ async function main (mode='chat') {
   }
 
   while(true){
-    const rows = await getNextChunk(NUMBER_OF_CHUNKS, sql);
+    const rows = await getNextChunk(NUMBER_OF_CHUNKS);
     // console.log(rows);
     if(rows.length === 0){
       break;
