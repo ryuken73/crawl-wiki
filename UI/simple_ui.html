@@ -1,8 +1,5 @@
 <head>
   <style> body { margin: 0; } </style>
-
-  <!-- <script src="//unpkg.com/3d-force-graph"></script> -->
-<!--  <script src="../../dist/3d-force-graph.js"></script>-->
   <script src="./3d-force-graph.js"></script>
 </head>
 
@@ -10,9 +7,11 @@
   <div id="3d-graph"></div>
 
   <script type="module">
-    import { UnrealBloomPass } from 'https://esm.sh/three/examples/jsm/postprocessing/UnrealBloomPass.js';
+    import { UnrealBloomPass } from './unrealBloom.js'
     import SpriteText from "https://esm.sh/three-spritetext";
+    import {print} from './util.js';
 
+    print();
     const API_URL = 'http://localhost:2025';
     const COLORS = {
       person: 'yellow',
