@@ -1,12 +1,15 @@
 {
   "dependencies": {
+    "@fastify/cors": "^10.0.1",
     "@fastify/postgres": "^6.0.1",
     "@google/generative-ai": "^0.21.0",
     "@playwright/test": "^1.42.1",
     "axios": "^1.6.8",
     "dotenv": "^16.4.5",
+    "fastify": "^5.2.0",
     "is-webp": "^2.0.0",
     "mkdirp": "^3.0.1",
+    "nodemon": "^3.1.9",
     "pg": "^8.13.1",
     "playwright": "^1.42.1",
     "read-chunk": "^5.0.0",
