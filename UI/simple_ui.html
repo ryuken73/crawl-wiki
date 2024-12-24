@@ -7,9 +7,15 @@
   <div id="3d-graph"></div>
 
   <script type="module">
-    import { UnrealBloomPass } from './UnrealBloom.js'
-    import SpriteText from "./SplitText.js";
-    import {print} from './util.js';
+    import { UnrealBloomPass } from './js/UnrealBloom.js';
+    import SpriteText from "./js/SplitText.js";
+    import {getBacklinksByContentId} from './js/serverApi.js';
+    // import {handleClickNode} from './js/graphHandlers.js';
+    import mkGraphHandler from './js/graphHandlers.js';
+    import {mkNetworkData} from './js/dataHandlers.js';
+    // import {getBacklinkByContentId} from './js/serverApi.js';
+    import {print} from './js/util.js';
+
 
     print();
     const API_URL = 'http://localhost:2025';
@@ -19,73 +25,74 @@
     }
     let lastNetworkData = {nodes:[], links:[]};
     let Graph;
+    // let Graph = new ForceGraph3D(document.getElementById('3d-graph'))
+    // const {handleClickNode} = mkGraphHandler(Graph);
 
-    const isNewNode = (row, prevResult) => {
-      // console.log('prevNetworkData:', prevResult.nodes)
-      const prevNodes = prevResult.nodes;
-      const dupNode = prevNodes.find(node => {
-        return node.id === row.content_id || node.id === row.backlink_id
-      })
-      if(dupNode){
-        console.log(`${row.backlink_text} ${row.content_name} isDup:`, dupNode);
-      }
-      return !dupNode;
-    }
-    const mkNetworkData = (rows, sourceId, prevResult={nodes:[], links:[]}) => {
-      return rows.reduce((acct, row, index) => {
-        const newNodes = isNewNode(row, prevResult) ?
-        [
-          ...acct.nodes,
-          {
-            id: row.content_id || row.backlink_id,
-            text: row.backlink_text,
-            color: row.content_id ? COLORS.person : COLORS.other,
-            value: row.count === "0" ? 1 : parseInt(row.count),
-            isPerson: row.content_id ? true : false
-          }
-        ]:[
-          ...acct.nodes
-        ]
-        const newLinks = [
-          ...acct.links,
-          {
-            source: sourceId,
-            target: row.content_id || row.backlink_id
-          }
-        ]
-        return {
-          nodes: newNodes,
-          links: newLinks
-        }
-      }, prevResult)
-    }
+    // const isNewNode = (row, prevResult) => {
+    //   // console.log('prevNetworkData:', prevResult.nodes)
+    //   const prevNodes = prevResult.nodes;
+    //   const dupNode = prevNodes.find(node => {
+    //     return node.id === row.content_id || node.id === row.backlink_id
+    //   })
+    //   if(dupNode){
+    //     console.log(`${row.backlink_text} ${row.content_name} isDup:`, dupNode);
+    //   }
+    //   return !dupNode;
+    // }
+    // const mkNetworkData = (rows, sourceId, prevResult={nodes:[], links:[]}) => {
+    //   return rows.reduce((acct, row, index) => {
+    //     const newNodes = isNewNode(row, prevResult) ?
+    //     [
+    //       ...acct.nodes,
+    //       {
+    //         id: row.content_id || row.backlink_id,
+    //         text: row.backlink_text,
+    //         color: row.content_id ? COLORS.person : COLORS.other,
+    //         value: row.count === "0" ? 1 : parseInt(row.count),
+    //         isPerson: row.content_id ? true : false
+    //       }
+    //     ]:[
+    //       ...acct.nodes
+    //     ]
+    //     const newLinks = [
+    //       ...acct.links,
+    //       {
+    //         source: sourceId,
+    //         target: row.content_id || row.backlink_id
+    //       }
+    //     ]
+    //     return {
+    //       nodes: newNodes,
+    //       links: newLinks
+    //     }
+    //   }, prevResult)
+    // }
     const handleClickNode = async (node)  => {
       const {id, isPerson} = node;
       if(!isPerson){
         return false
       }
       console.log(id, isPerson)
-      const rows = await fetchData(id)
+      const rows = await getBacklinksByContentId(id)
       lastNetworkData = mkNetworkData(rows, node.id, lastNetworkData);
       console.log(lastNetworkData)
       Graph.graphData(lastNetworkData)
-
     }
 
     const drawGraph = (networkData) => {
       Graph = new ForceGraph3D(document.getElementById('3d-graph'))
-          .backgroundColor('#000003')
-          .graphData(networkData)
-          // .nodeLabel('text')
-          .nodeThreeObject(node => {
-            const sprite = new SpriteText(node.text);
-            sprite.material.depthWrite = true; // make sprite background transparent
-            sprite.color = node.color;
-            sprite.textHeight = Math.log(node.value) + 4;
-            return sprite;
-          })
-          .onNodeClick(handleClickNode)
-          // .nodeAutoColorBy('group');
+        .backgroundColor('#000003')
+        .graphData(networkData)
+        // .nodeLabel('text')
+        .nodeThreeObject(node => {
+          const sprite = new SpriteText(node.text);
+          sprite.material.depthWrite = true; // make sprite background transparent
+          sprite.color = node.color;
+          sprite.textHeight = Math.log(node.value) + 4;
+          return sprite;
+        })
+        .onNodeClick(handleClickNode)
+        // .nodeAutoColorBy('group');
 
       const bloomPass = new UnrealBloomPass();
       bloomPass.strength = 0.5;
@@ -93,14 +100,14 @@
       bloomPass.threshold = 0;
       Graph.postProcessingComposer().addPass(bloomPass);
     }
-    const fetchData = async (contentId) => {
-      const personData = await fetch(`${API_URL}/backlinks/byContentId/${contentId}`);
-      const jsonResult = await personData.json();
-      const {rows, rowCount} = jsonResult;
-      console.log(rows)
-      return rows
+    // const fetchData = async (contentId) => {
+    //   const personData = await fetch(`${API_URL}/backlinks/byContentId/${contentId}`);
+    //   const jsonResult = await personData.json();
+    //   const {rows, rowCount} = jsonResult;
+    //   console.log(rows)
+    //   return rows
 
-    }
+    // }
 
     const contentId = '배우_한국_C_002263_이유진';
     const expandNode = {
@@ -109,7 +116,7 @@
       color: COLORS.person,
       value: 100
     }
-    const rows = await fetchData(contentId)
+    const rows = await getBacklinksByContentId(contentId)
     lastNetworkData.nodes.push(expandNode);
     lastNetworkData = mkNetworkData(rows, contentId, lastNetworkData);
     // console.log(networkData.nodes.length, networkData.links.length)
