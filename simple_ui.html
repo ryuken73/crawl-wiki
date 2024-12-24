@@ -1,0 +1,121 @@
+<head>
+  <style> body { margin: 0; } </style>
+
+  <!-- <script src="//unpkg.com/3d-force-graph"></script> -->
+<!--  <script src="../../dist/3d-force-graph.js"></script>-->
+  <script src="./3d-force-graph.js"></script>
+</head>
+
+<body>
+  <div id="3d-graph"></div>
+
+  <script type="module">
+    import { UnrealBloomPass } from 'https://esm.sh/three/examples/jsm/postprocessing/UnrealBloomPass.js';
+    import SpriteText from "https://esm.sh/three-spritetext";
+
+    const API_URL = 'http://localhost:2025';
+    const COLORS = {
+      person: 'yellow',
+      other: 'grey'
+    }
+    let lastNetworkData = {nodes:[], links:[]};
+    let Graph;
+
+    const isNewNode = (row, prevResult) => {
+      // console.log('prevNetworkData:', prevResult.nodes)
+      const prevNodes = prevResult.nodes;
+      const dupNode = prevNodes.find(node => {
+        return node.id === row.content_id || node.id === row.backlink_id
+      })
+      if(dupNode){
+        console.log(`${row.backlink_text} ${row.content_name} isDup:`, dupNode);
+      }
+      return !dupNode;
+    }
+    const mkNetworkData = (rows, sourceId, prevResult={nodes:[], links:[]}) => {
+      return rows.reduce((acct, row, index) => {
+        const newNodes = isNewNode(row, prevResult) ?
+        [
+          ...acct.nodes,
+          {
+            id: row.content_id || row.backlink_id,
+            text: row.backlink_text,
+            color: row.content_id ? COLORS.person : COLORS.other,
+            value: row.count === "0" ? 1 : parseInt(row.count),
+            isPerson: row.content_id ? true : false
+          }
+        ]:[
+          ...acct.nodes
+        ]
+        const newLinks = [
+          ...acct.links,
+          {
+            source: sourceId,
+            target: row.content_id || row.backlink_id
+          }
+        ]
+        return {
+          nodes: newNodes,
+          links: newLinks
+        }
+      }, prevResult)
+    }
+    const handleClickNode = async (node)  => {
+      const {id, isPerson} = node;
+      if(!isPerson){
+        return false
+      }
+      console.log(id, isPerson)
+      const rows = await fetchData(id)
+      lastNetworkData = mkNetworkData(rows, node.id, lastNetworkData);
+      console.log(lastNetworkData)
+      Graph.graphData(lastNetworkData)
+
+    }
+
+    const drawGraph = (networkData) => {
+      Graph = new ForceGraph3D(document.getElementById('3d-graph'))
+          .backgroundColor('#000003')
+          .graphData(networkData)
+          // .nodeLabel('text')
+          .nodeThreeObject(node => {
+            const sprite = new SpriteText(node.text);
+            sprite.material.depthWrite = false; // make sprite background transparent
+            sprite.color = node.color;
+            sprite.textHeight = Math.log(node.value) + 4;
+            return sprite;
+          })
+          .onNodeClick(handleClickNode)
+          // .nodeAutoColorBy('group');
+
+      const bloomPass = new UnrealBloomPass();
+      bloomPass.strength = 0.5;
+      bloomPass.radius = 0.5;
+      bloomPass.threshold = 0;
+      Graph.postProcessingComposer().addPass(bloomPass);
+    }
+    const fetchData = async (contentId) => {
+      const personData = await fetch(`${API_URL}/backlinks/byContentId/${contentId}`);
+      const jsonResult = await personData.json();
+      const {rows, rowCount} = jsonResult;
+      console.log(rows)
+      return rows
+
+    }
+
+    const contentId = '배우_한국_C_002263_이유진';
+    const expandNode = {
+      id:  contentId,
+      text: '이유진',
+      color: COLORS.person,
+      value: 100
+    }
+    const rows = await fetchData(contentId)
+    lastNetworkData.nodes.push(expandNode);
+    lastNetworkData = mkNetworkData(rows, contentId, lastNetworkData);
+    // console.log(networkData.nodes.length, networkData.links.length)
+    console.log(lastNetworkData);
+    drawGraph(lastNetworkData)
+
+  </script>
+</body>
