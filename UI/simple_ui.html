@@ -7,8 +7,8 @@
   <div id="3d-graph"></div>
 
   <script type="module">
-    import { UnrealBloomPass } from './unrealBloom.js'
-    import SpriteText from "https://esm.sh/three-spritetext";
+    import { UnrealBloomPass } from './UnrealBloom.js'
+    import SpriteText from "./SplitText.js";
     import {print} from './util.js';
 
     print();
@@ -79,7 +79,7 @@
           // .nodeLabel('text')
           .nodeThreeObject(node => {
             const sprite = new SpriteText(node.text);
-            sprite.material.depthWrite = false; // make sprite background transparent
+            sprite.material.depthWrite = true; // make sprite background transparent
             sprite.color = node.color;
             sprite.textHeight = Math.log(node.value) + 4;
             return sprite;
