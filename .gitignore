@@ -7,3 +7,4 @@ processed.db
 start.sh
 run_*.sh
 a.html
+db.env
