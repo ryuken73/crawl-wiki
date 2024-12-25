@@ -1,0 +1,96 @@
+<head>
+  <style> body { margin: 0; } </style>
+  <script src="./force-graph.js"></script>
+</head>
+
+<body>
+  <div id="3d-graph"></div>
+
+  <script type="module">
+    import { UnrealBloomPass } from './js/UnrealBloom.js';
+    import SpriteText from "./js/SplitText.js";
+    import {getBacklinksByContentId} from './js/serverApi.js';
+    import mkGraphHandler from './js/graphHandlers.js';
+    import {mkNetworkData} from './js/dataHandlers.js';
+
+    const API_URL = 'http://localhost:2025';
+    const COLORS = {
+      person: 'yellow',
+      other: 'grey'
+    }
+    let lastNetworkData = {nodes:[], links:[]};
+    let Graph;
+
+    const handleClickNode = async (node)  => {
+      const {id, isPerson} = node;
+      if(!isPerson){
+        return false
+      }
+      console.log(id, isPerson)
+      const rows = await getBacklinksByContentId(id)
+      lastNetworkData = mkNetworkData(rows, node.id, lastNetworkData);
+      console.log(lastNetworkData)
+      Graph.graphData(lastNetworkData)
+    }
+
+    const drawGraph = (networkData) => {
+      Graph = new ForceGraph(document.getElementById('3d-graph'))
+        .backgroundColor('#000003')
+        .graphData(networkData)
+        .linkColor(() => 'rgba(255,255,255,0.2)')
+        .nodeCanvasObject((node, ctx, globalScale) => {
+          const label = node.text;
+          const fontSize = 12/globalScale;
+          ctx.font = `${fontSize}px Sans-Serif`;
+          const textWidth = ctx.measureText(label).width;
+          const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
+
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+          ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
+
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = node.color;
+          ctx.fillText(label, node.x, node.y);
+
+          node.__bckgDimensions = bckgDimensions; // to re-use in nodePointerAreaPaint
+        })
+        .nodePointerAreaPaint((node, color, ctx) => {
+          ctx.fillStyle = color;
+          const bckgDimensions = node.__bckgDimensions;
+          bckgDimensions && ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
+        })
+        // .nodeLabel('text')
+        // .onNodeHover((node, preNode) => {
+        //   console.log(node, preNode)
+        // })
+        .onNodeClick(handleClickNode)
+        .onNodeDragEnd(node => {
+          node.fx = node.x;
+          node.fy = node.y;
+          node.fz = node.z;
+        });
+        // .nodeAutoColorBy('group');
+
+      // const bloomPass = new UnrealBloomPass();
+      // bloomPass.strength = 0.5;
+      // bloomPass.radius = 0.5;
+      // bloomPass.threshold = 0;
+      // Graph.postProcessingComposer().addPass(bloomPass);
+    }
+    const contentId = '배우_한국_C_002263_이유진';
+    const expandNode = {
+      id:  contentId,
+      text: '이유진',
+      color: COLORS.person,
+      value: 100
+    }
+    const rows = await getBacklinksByContentId(contentId)
+    lastNetworkData.nodes.push(expandNode);
+    lastNetworkData = mkNetworkData(rows, contentId, lastNetworkData);
+    // console.log(networkData.nodes.length, networkData.links.length)
+    console.log(lastNetworkData);
+    drawGraph(lastNetworkData)
+
+  </script>
+</body>
