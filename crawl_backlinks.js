@@ -18,7 +18,11 @@ async function main(){
   const options = {};
   const browser = await createBrowser(null, options);
   // set cursor getContents (chunk_size = 100)
-  const sql = `select content_id, content_url from person.contents order by content_id desc`;
+  const sql = `select c.content_id, c.content_url
+    from person.contents c left outer join person.backlink_count bc
+    on c.content_id = bc.content_id
+    where bc.backlink_count is null
+    order by c.content_id desc`;
   const cursorName = 'c_getContents';
   const {getNextChunk, cursorCommit, cursorClose} = await dbGetCursor(cursorName, sql);
   let processed = 0;
