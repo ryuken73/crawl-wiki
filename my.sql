@@ -85,3 +85,12 @@ where b.backlink_text = '1984년' -- backlink_id로 고쳐야겠지?
 select count(*)
 from person.contents c, person.contents_backlinks cb
 where c.content_id = cb.content_id and c.content_name = '이일화'
+
+
+-------------------------------------------------------------
+-- backlink incremental crawling 시 대상 조회: backlink_count에 없는 contents가져오기
+
+select c.content_id
+from person.contents c left outer join person.backlink_count bc
+on c.content_id = bc.content_id
+where bc.backlink_count is null
