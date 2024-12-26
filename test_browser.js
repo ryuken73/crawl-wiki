@@ -43,6 +43,12 @@ const CRAWL_START_URLS = [
     // personPageLinksRegExp: /공명/
     // personPageLinksRegExp: /김기현/
     // personPageLinksRegExp: /박수영/
+  },
+  {
+    startPageUrl: 'https://namu.wiki/w/%EA%B0%80%EC%88%98/%ED%95%9C%EA%B5%AD',
+    personIdPrefix: '가수_한국',
+    presonPageLinksRegExp: /.*/, 
+
   }
 ]
 
@@ -223,4 +229,4 @@ async function main(crawlInfo) {
   process.exit();
 }
 
-main(CRAWL_START_URLS[0]);
+main(CRAWL_START_URLS[1]);
