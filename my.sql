@@ -23,6 +23,9 @@ left join person.backlinks b on b.backlink_url = c.content_url
 where b.backlink_url is null
 
 -- update primary_category of content
+
+select * from person.contents;
+select * from person.contents where content_id = '배우_한국_C_002341_최민수'
 select substring(content_id, 1,5) from person.contents_clone;
 
 update person.contents set primary_category = (
