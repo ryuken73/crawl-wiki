@@ -11,8 +11,9 @@ module.exports = {
     SELECT b.backlink_id,
           b.backlink_text, 
           b.backlink_url,
-          COALESCE(bc.backlink_count, 0) AS count,
-        bc.content_id
+          COALESCE(bc.backlink_count, 0) AS backlink_count,
+          bc.content_id,
+          c.primary_category
     FROM person.backlinks b
     JOIN person.contents_backlinks cb 
         ON b.backlink_id = cb.backlink_id
@@ -22,7 +23,7 @@ module.exports = {
         ON b.backlink_url = bc.content_url
   `,
   content: `
-    Select c.content_id, c.content_name, c.additional_info, i.image_subdir, i.image_name
+    Select c.content_id, c.content_name, c.additional_info, i.image_subdir, i.image_name, c.primary_category
     from person.contents c
     JOIN person.images i on c.content_id = i.content_id
   `
