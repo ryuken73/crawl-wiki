@@ -64,7 +64,7 @@
         // .onNodeHover((node, preNode) => {
         //   console.log(node, preNode)
         // })
-        .onNodeClick(handleClickNode)
+        .onNodeRightClick(handleClickNode)
         .onNodeDragEnd(node => {
           node.fx = node.x;
           node.fy = node.y;
@@ -78,10 +78,11 @@
       // bloomPass.threshold = 0;
       // Graph.postProcessingComposer().addPass(bloomPass);
     }
-    const contentId = '배우_한국_C_002263_이유진';
+    // const contentId = '배우_한국_C_002263_이유진';
+    const contentId = '가수_한국_C_004301_유재석';
     const expandNode = {
       id:  contentId,
-      text: '이유진',
+      text: '유재석',
       color: COLORS.person,
       value: 100
     }
