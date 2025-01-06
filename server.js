@@ -27,8 +27,29 @@ fastify.get('/backlinks/byContentId/:id', (req, reply) => {
     }
   )
 })
+fastify.get('/forwardlinks/byBacklinkId/:id', (req, reply) => {
+  fastify.pg.wikiDB.query( `${sqls.forwardlinks} WHERE fc.backlink_id = $1`, [req.params.id],
+    function onResult (err, result) {
+      reply.send(err || result)
+    }
+  )
+})
 fastify.get('/content/:id', (req, reply) => {
   fastify.pg.wikiDB.query( `${sqls.content} where c.content_id = $1`, [req.params.id],
+    function onResult (err, result) {
+      reply.send(err || result)
+    }
+  )
+})
+fastify.get('/backlinkId-fromContentId/:id', (req, reply) => {
+  fastify.pg.wikiDB.query( `${sqls.backlinkIdFromContentId} where c.content_id = $1`, [req.params.id],
+    function onResult (err, result) {
+      reply.send(err || result)
+    }
+  )
+})
+fastify.get('/contentId-backlinkId/:id', (req, reply) => {
+  fastify.pg.wikiDB.query( `${sqls.contentIdFromBacklinkId} where b.backlink_id = $1`, [req.params.id],
     function onResult (err, result) {
       reply.send(err || result)
     }

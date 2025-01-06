@@ -17,38 +17,30 @@ select backlink_id from person.backlinks b
 join person.contents c on c.content_url = b.backlink_url
 where c.content_id ='가수_한국_C_004301_유재석'
 
--- contents 중에서 backlinks에 수집되지 않은 것들 조회
+-- contents 중에서 backlinks로 등록되지 않은 것들 조회
 select c.content_id, c.content_name, b.backlink_id from person.contents c
 left join person.backlinks b on b.backlink_url = c.content_url
 where b.backlink_url is null
 
 -- update primary_category of content
 
-select * from person.contents;
-select * from person.contents where content_id = '배우_한국_C_002341_최민수'
-select substring(content_id, 1,5) from person.contents_clone;
-
-update person.contents set primary_category = (
-select substring(content_id, 1,5) from person.contents co
-where co.content_id = person.contents.content_id
-)
-
 -- 신민아 node 눌렀을 때 관련된 backlinks 리턴 (각 backlink가 person인지 표시)
-select b.backlink_text, b.backlink_url, b.content_ref_count,
+select b.backlink_text, b.backlink_url, b.forwardlink_count,
 case when exists(
 	select 1 from person.contents cc 
 	where cc.content_url = b.backlink_url
 ) then 'Y' else 'N'
-end as isPerson
+end as isContent
 from person.backlinks b
 join person.contents_backlinks cb on b.backlink_id = cb.backlink_id
 join person.contents c on cb.content_id = c.content_id
 -- where c.content_name = '신민아' -- content_id로 고쳐야겠지? 
 where c.content_id = '가수_한국_C_004301_유재석'
-order by content_ref_count desc
+order by forwardlink_count desc
 
--- 신민아 node 눌렀을 때 관련된 backlinks들의 text, url 그리고 backlink들의 backlink 갯수(만약 있다면)를 리턴
-select b.backlink_text, b.backlink_url, b.content_ref_count,
+-- 신민아 node 눌렀을 때 관련된 backlinks들의 text, url 그리고 backlink들의 
+-- forwardlink 갯수(만약 있다면)를 리턴
+select b.backlink_text, b.backlink_url, b.forwardlink_count,
 (select backlink_count 
  from person.contents cc, person.backlink_count bc 
  where cc.content_id = bc.content_id
@@ -77,29 +69,30 @@ join person.contents c on cb.content_id = c.content_id
 where c.content_name = '신민아' 
 
 -- subquery를 사용한 버전 (backlink의 content_id도 같이 리턴)
-WITH backlink_counts AS (
-    SELECT cc.content_url, bc.content_id,
-           COALESCE(bc.backlink_count, 0) AS backlink_count
-    FROM person.contents cc
-    LEFT JOIN person.backlink_count bc 
-    ON cc.content_id = bc.content_id
-)
 
-SELECT b.backlink_id,
-       b.backlink_text, 
-       b.backlink_url,
-       COALESCE(bc.backlink_count, 0) AS count,
-	   bc.content_id
-FROM person.backlinks b
-JOIN person.contents_backlinks cb 
-    ON b.backlink_id = cb.backlink_id
-JOIN person.contents c 
-    ON cb.content_id = c.content_id
-LEFT JOIN backlink_counts bc 
-    ON b.backlink_url = bc.content_url
--- WHERE c.content_name = '신민아';
-where c.content_id = '배우_한국_C_000001_감우성'
+    WITH backlink_counts AS (
+        SELECT cc.content_url, bc.content_id, cc.primary_category,
+              COALESCE(bc.backlink_count, 0) AS backlink_count
+        FROM person.contents cc
+        LEFT JOIN person.backlink_count bc 
+        ON cc.content_id = bc.content_id
+    )
 
+    SELECT b.backlink_id,
+          b.backlink_text, 
+          b.backlink_url,
+          COALESCE(bc.backlink_count, 0) AS backlink_count,
+          bc.content_id,
+          bc.primary_category,
+          b.forwardlink_count
+    FROM person.backlinks b
+    JOIN person.contents_backlinks cb 
+        ON b.backlink_id = cb.backlink_id
+    JOIN person.contents c 
+        ON cb.content_id = c.content_id
+    LEFT JOIN backlink_counts bc 
+        ON b.backlink_url = bc.content_url
+	where c.content_id = '배우_한국_C_002147_김정현_1990년생'
 
 
 -- 1984년이라는 node 눌렀을 때 그것과 연결된 person return
@@ -130,18 +123,118 @@ on cb.backlink_id = b.backlink_id
 group by 1,2 
 order by count desc
 
--- backlink별 역참조 카운트 조회 (집계)
-select backlink_text, content_ref_count from person.backlinks
+-- backlink별 forwardlink 카운트 조회 (집계)
+select backlink_text, forwardlink_count from person.backlinks
 order by 2 desc
 
 -- backlinks count update
-update person.backlinks b set content_ref_count = (
+update person.backlinks b set forwardlink_count = (
 	select count(*) 
 	from person.contents_backlinks cb 
 	where b.backlink_id = cb.backlink_id
 )
 
--- 가장 역참조가 많은 backlink 조회
+-- content_id from backlink_id
+select c.content_id
+from person.contents c
+join person.backlinks b
+on c.content_url = b.backlink_url
+where b.backlink_id='1311'
+
+-- backlink_id from content_id
+select b.backlink_id
+from person.backlinks b
+join person.contents c
+on c.content_url = b.backlink_url
+where c.content_id ='배우_한국_C_002147_김정현_1990년생'
+
+---- 개념 ----------------------------------------------------------------
+---- backlink 개념
+ -- 김정현의 backlink들 구하기 == 136개
+ select b.backlink_text, b.backlink_url
+ from person.backlinks b
+ join person.contents_backlinks cb
+ on cb.backlink_id = b.backlink_id
+ where cb.content_id = '배우_한국_C_002147_김정현_1990년생'
+ 
+ -- 김정현의 backlink들 중에 content_id를 가지고 있는 것들만 리턴 == 11개
+  select c.content_id, b.backlink_text, b.backlink_url
+  from person.backlinks b
+  join person.contents_backlinks cb
+  on cb.backlink_id = b.backlink_id
+  right join person.contents c
+  on c.content_url = b.backlink_url
+  where cb.content_id = '배우_한국_C_002147_김정현_1990년생'
+
+---- forwardlink 개념
+ -- 김정현의 forwardlink들 구하기 == 21개
+ select cb.content_id
+ from person.contents_backlinks cb
+ where cb.backlink_id = '1311'
+---------------------------------------------------------------------------
+
+
+-- 김정현을 언급한 사람들 (backlink) => return content_id
+-- select * from person.contents where content_id='배우_한국_C_002147_김정현_1990년생'
+  select c.content_id, b.backlink_text, b.backlink_url
+  from person.backlinks b
+  join person.contents_backlinks cb
+  on cb.backlink_id = b.backlink_id
+  right join person.contents c
+  on c.content_url = b.backlink_url
+  where cb.content_id = '배우_한국_C_002147_김정현_1990년생'
+
+-- 김정현이 언급한 사람들 (forward link: 본문 링크) => return content_id
+-- select * from person.backlinks where backlink_id='1311'
+-- get content_id for forward link
+  select b.backlink_text, b.backlink_url, cb.content_id
+  from person.backlinks b
+  join person.contents_backlinks cb
+  on b.backlink_id = cb.backlink_id 
+  where b.backlink_id='1311'
+
+-- subquery version
+  with forward_content as (
+	  select b.backlink_id, b.backlink_text, b.backlink_url, cb.content_id
+	  from person.backlinks b
+	  join person.contents_backlinks cb
+	  on b.backlink_id = cb.backlink_id 
+  ) 
+  select * 
+  from forward_content fc
+  where fc.backlink_id = '1311'
+
+-- 확장 using subquery
+  with forward_content as (
+	  select b.backlink_id, b.backlink_text, b.backlink_url, cb.content_id
+	  from person.backlinks b
+	  join person.contents_backlinks cb
+	  on b.backlink_id = cb.backlink_id 
+  ) 
+  select b.backlink_id, 
+  	b.backlink_text,
+	b.backlink_url,
+	COALESCE(bc.backlink_count, 0) AS backlink_count,
+	fc.content_id, 
+	c.primary_category,
+	b.forwardlink_count
+  from forward_content fc
+  join person.contents c
+  on fc.content_id = c.content_id
+  join person.backlinks b
+  on b.backlink_url = c.content_url
+  join person.backlink_count bc
+  on fc.content_id = bc.content_id
+  where fc.backlink_id = '1311'
+
+
+-- 1) forward link 가장 많이 가진 순서...
+select backlink_text, forwardlink_count 
+from person.backlinks order by forwardlink_count desc
+
+-- 2) contents_backlinks 테이블에서 backlink_id기준으로 backlink 갯수 조회
+--    이것은 각 backlink의 forward link 갯수와 같다.
+--    이 값은 위 1)과 동일해야하는데, 만약 다르면 다시 집계를 해야한다.
 select  cb.backlink_id, b.backlink_text, count(1) as count 
 from person.contents_backlinks cb 
 join person.backlinks b
