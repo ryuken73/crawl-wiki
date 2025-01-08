@@ -1,5 +1,6 @@
 {
   "RUN_MODE_NUMBER": 1,
   "SAVE_PATH": "d:/002.Code/002.node/crawl-wiki/images",
-  "TEMP_PATH": "d:/002.Code/002.node/crawl-wiki/work"
+  "TEMP_PATH": "d:/002.Code/002.node/crawl-wiki/work",
+  "WIKI_BASE_URL": "https://namu.wiki"
 }
