@@ -145,7 +145,8 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder, should
         contentId,
         listText,
         linkHref,
-        contents
+        contents,
+        personIdPrefix
       });
       logger.info('content first 4 lines:', contentsBlankLineRemoved.split('\n').slice(0,4).join(':'));
 
