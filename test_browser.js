@@ -38,8 +38,8 @@ const CRAWL_START_URLS = [
   {
     startPageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
     personIdPrefix: '배우_한국',
-    pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    // presonPageLinksRegExp: /.*/, 
+    personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    // personPageLinksRegExp: /.*/, 
     // personPageLinksRegExp: /공명/
     // personPageLinksRegExp: /김기현/
     // personPageLinksRegExp: /박수영/
@@ -47,19 +47,22 @@ const CRAWL_START_URLS = [
   {
     startPageUrl: 'https://namu.wiki/w/%EA%B0%80%EC%88%98/%ED%95%9C%EA%B5%AD',
     personIdPrefix: '가수_한국',
-    presonPageLinksRegExp: /.*/, 
+    personPageLinksRegExp: /.*/, 
 
   },
   {
     startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%84%B1%20%EC%A0%95%EC%B9%98%EC%9D%B8',
     personIdPrefix: '정치인_한국',
-    presonPageLinksRegExp: /.*/, 
+    personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
     crawlCategory: WIKI_CATEGORY_IDS.CLASSES
   },
   {
     startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%84%B1%20%EC%A0%95%EC%B9%98%EC%9D%B8',
     personIdPrefix: '정치인_한국',
-    presonPageLinksRegExp: /.*/, 
+    personPageLinksRegExp: /.*/,
+    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    // personPageLinksRegExp: /갈봉근/, 
+    // personPageLinksRegExp: /강대식/, 
     crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
   }
 ]
@@ -233,7 +236,7 @@ async function main(crawlInfo) {
   console.log('done')
   // const buttons = await browser.getButtonsInLocatorArray();
   while(true){
-    const buttonHrefRegExp = shouldMakeLinkUrl ? /namespace=분류.*cfrom=/ : null;
+    const buttonHrefRegExp = shouldMakeLinkUrl ? /namespace=분류.*cfrom=/:/namespace=문서.*cfrom=/;
     const nextButton = await browser.wikiGetNextButton(buttonHrefRegExp);
     console.log(nextButton)
     if(nextButton === null){
@@ -251,4 +254,4 @@ async function main(crawlInfo) {
   process.exit();
 }
 
-main(CRAWL_START_URLS[2]);
+main(CRAWL_START_URLS[3]);
