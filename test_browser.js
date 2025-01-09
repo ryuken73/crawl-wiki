@@ -38,8 +38,8 @@ const CRAWL_START_URLS = [
   {
     startPageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
     personIdPrefix: '배우_한국',
-    // presonPageLinksRegExp: /.*/, 
     pageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    // presonPageLinksRegExp: /.*/, 
     // personPageLinksRegExp: /공명/
     // personPageLinksRegExp: /김기현/
     // personPageLinksRegExp: /박수영/
@@ -49,6 +49,18 @@ const CRAWL_START_URLS = [
     personIdPrefix: '가수_한국',
     presonPageLinksRegExp: /.*/, 
 
+  },
+  {
+    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%84%B1%20%EC%A0%95%EC%B9%98%EC%9D%B8',
+    personIdPrefix: '정치인_한국',
+    presonPageLinksRegExp: /.*/, 
+    crawlCategory: WIKI_CATEGORY_IDS.CLASSES
+  },
+  {
+    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%84%B1%20%EC%A0%95%EC%B9%98%EC%9D%B8',
+    personIdPrefix: '정치인_한국',
+    presonPageLinksRegExp: /.*/, 
+    crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
   }
 ]
 
@@ -73,7 +85,7 @@ const getContentFnameTemp = (contentId, tempFolder) => {
   return path.join(tempFolder, `${contentId}.json`)
 }
 
-const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
+const processWikiList = async (browser, list, personIdPrefix, tempFolder, shouldMakeLinkUrl) => {
   let success=0; 
   let failure=0; 
   let duplicate=0;
@@ -86,12 +98,13 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
     const {
       firstLink,
       listText: nameFromList,
-      linkHref
+      linkHref: linkHrefFromListProps
     } = await browser.wikiGetListProps(listItem)
+    const linkHref = shouldMakeLinkUrl ? browser.wikiMakeUrlByText(nameFromList) : linkHrefFromListProps;
     const nameFromHref = decodeURI(linkHref.split('/').pop()).replace('(','_').replace(')', '');
     const listText = nameFromList === nameFromHref ? nameFromList: nameFromHref;
     try {
-      logger.info('[start]', listText)
+      logger.info('[start]', listText, linkHref)
       const alreadCrawled = await dbIsDuplicateRecord(linkHref);
       if(alreadCrawled){
         logger.info('already exists in DB:', listText);
@@ -104,7 +117,9 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder) => {
       failure++;
     }
     try {
-      const personPage = await browser.openChildPageByClickLink(firstLink);
+      const personPage = shouldMakeLinkUrl ?
+        await browser.openChildPageByUrl(linkHref) :
+        await browser.openChildPageByClickLink(firstLink);
       const pageLoaded = await browser.wikiWaitForPersonPage(personPage, listText);
       if(!pageLoaded){
         logger.error(`page not loaded:${listText}:${linkHref}`)
@@ -179,9 +194,11 @@ async function main(crawlInfo) {
   const {
     startPageUrl,
     personPageLinksRegExp,
-    personIdPrefix
+    personIdPrefix,
+    crawlCategory
   } = crawlInfo
   let tempFolder = fileUtil.getDefaultTempFolder();
+
   if(RUN_MODE !== 'TEMP'){
     try {
       const folderCreated = await fileUtil.prepareTempFoler();
@@ -206,14 +223,17 @@ async function main(crawlInfo) {
   const browser = await createBrowser(startPageUrl, options);
   const list = await browser.getListWithLinkInArray({
     regexp: personPageLinksRegExp,
+    id: crawlCategory
     // id: WIKI_CATEGORY_IDS.DOCUMENTS
   });
-  await processWikiList(browser, list, personIdPrefix, tempFolder)
+  const shouldMakeLinkUrl = crawlCategory === WIKI_CATEGORY_IDS.CLASSES;
+  await processWikiList(browser, list, personIdPrefix, tempFolder, shouldMakeLinkUrl)
 
   console.log('done')
   // const buttons = await browser.getButtonsInLocatorArray();
   while(true){
-    const nextButton = await browser.wikiGetNextButton();
+    const buttonHrefRegExp = shouldMakeLinkUrl ? /namespace=분류.*cfrom=/ : null;
+    const nextButton = await browser.wikiGetNextButton(buttonHrefRegExp);
     console.log(nextButton)
     if(nextButton === null){
       logger.info('all process done')
@@ -222,11 +242,12 @@ async function main(crawlInfo) {
     await browser.clickLinkAndWait(nextButton);
     const list = await browser.getListWithLinkInArray({
       regexp: personPageLinksRegExp,
+      id: crawlCategory
       // id: WIKI_CATEGORY_IDS.DOCUMENTS
     });
-    await processWikiList(browser, list, personIdPrefix, tempFolder)
+    await processWikiList(browser, list, personIdPrefix, tempFolder, shouldMakeLinkUrl)
   }
   process.exit();
 }
 
-main(CRAWL_START_URLS[1]);
+main(CRAWL_START_URLS[2]);
