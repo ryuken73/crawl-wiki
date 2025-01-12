@@ -64,6 +64,24 @@ const CRAWL_START_URLS = [
     // personPageLinksRegExp: /갈봉근/, 
     // personPageLinksRegExp: /강대식/, 
     crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
+  },
+  {
+    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EC%97%AC%EC%84%B1%20%EC%A0%95%EC%B9%98%EC%9D%B8',
+    personIdPrefix: '정치인_한국',
+    personPageLinksRegExp: /.*/,
+    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    // personPageLinksRegExp: /갈봉근/, 
+    // personPageLinksRegExp: /강대식/, 
+    crawlCategory: WIKI_CATEGORY_IDS.CLASSES
+  },
+  {
+    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EC%97%AC%EC%84%B1%20%EC%A0%95%EC%B9%98%EC%9D%B8',
+    personIdPrefix: '정치인_한국',
+    personPageLinksRegExp: /.*/,
+    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    // personPageLinksRegExp: /갈봉근/, 
+    // personPageLinksRegExp: /강대식/, 
+    crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
   }
 ]
 
@@ -254,4 +272,4 @@ async function main(crawlInfo) {
   process.exit();
 }
 
-main(CRAWL_START_URLS[3]);
+main(CRAWL_START_URLS[4]);

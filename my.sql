@@ -1,16 +1,26 @@
+-- 전반적인 레코드 수
+
+select primary_category, count(*) from person.contents group by 1;
+
 SELECT * FROM person.backlink_count order by backlink_count desc;
 
 select content_id, content_name, additional_info_raw, additional_info from person.contents
 
 select to_tsvector('열혈사제2와 관련된 배우들')
 
+select * from person.contents where content_name = '유재석'
+
+select content_id,content_url from person.contents
+where content_id in (
+select content_id from person.backlink_count
+where backlink_count = 0)
 
 
 select b.backlink_text
 from person.backlinks b
 join person.contents_backlinks cb on b.backlink_id = cb.backlink_id
 join person.contents c on cb.content_id = c.content_id
-where c.content_name = '신민아' 
+where c.content_name = '박원순' 
 
 -- backlinkId from contentId
 select backlink_id from person.backlinks b
@@ -22,7 +32,12 @@ select c.content_id, c.content_name, b.backlink_id from person.contents c
 left join person.backlinks b on b.backlink_url = c.content_url
 where b.backlink_url is null
 
--- update primary_category of content
+-- update content_url
+update person.contents c set content_url = (
+	select substr(content_url, 18) from person.contents cc
+	where c.content_id = cc.content_id
+) where content_url like 'https://%'
+
 
 -- 신민아 node 눌렀을 때 관련된 backlinks 리턴 (각 backlink가 person인지 표시)
 select b.backlink_text, b.backlink_url, b.forwardlink_count,
@@ -35,7 +50,8 @@ from person.backlinks b
 join person.contents_backlinks cb on b.backlink_id = cb.backlink_id
 join person.contents c on cb.content_id = c.content_id
 -- where c.content_name = '신민아' -- content_id로 고쳐야겠지? 
-where c.content_id = '가수_한국_C_004301_유재석'
+-- where c.content_id = '가수_한국_C_004301_유재석
+where c.content_id = '정치인_한국_C_007345_박정희'
 order by forwardlink_count desc
 
 -- 신민아 node 눌렀을 때 관련된 backlinks들의 text, url 그리고 backlink들의 
@@ -92,7 +108,7 @@ where c.content_name = '신민아'
         ON cb.content_id = c.content_id
     LEFT JOIN backlink_counts bc 
         ON b.backlink_url = bc.content_url
-	where c.content_id = '배우_한국_C_002147_김정현_1990년생'
+	where c.content_id = '가수_한국_C_004301_유재석'
 
 
 -- 1984년이라는 node 눌렀을 때 그것과 연결된 person return
@@ -225,8 +241,8 @@ where c.content_id ='배우_한국_C_002147_김정현_1990년생'
   on b.backlink_url = c.content_url
   join person.backlink_count bc
   on fc.content_id = bc.content_id
-  where fc.backlink_id = '1311'
-
+  -- where fc.backlink_id = '1311'
+  where fc.backlink_id = '3548'
 
 -- 1) forward link 가장 많이 가진 순서...
 select backlink_text, forwardlink_count 
