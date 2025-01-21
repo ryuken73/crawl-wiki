@@ -15,6 +15,8 @@ where content_id in (
 select content_id from person.backlink_count
 where backlink_count = 0)
 
+delete from person.backlink_count where backlink_count=0
+
 
 select b.backlink_text
 from person.backlinks b
@@ -258,3 +260,24 @@ on cb.backlink_id = b.backlink_id
 group by 1,2 
 having count(*) > 1000
 order by count desc
+
+
+-- 검색엔진관련 Query
+-- 대상: contents와 backlinks 모두가 검색 대상
+-- 제공 필드:
+--- id:, text:, primary_category:
+--- * id는 contents라면 content_id, backlink라면 backlink_id 사용
+--- * text는 contents라면 content_name, backlink라면 backlink_text
+--- * primary_category는 contents는 그대로, backlink는 "-"
+select c.content_id as id, c.content_name as text, c.primary_category, c.content_url as url
+from person.contents c
+union
+select b.backlink_id as id, b.backlink_text as text, '-' as primary_category, b.backlink_url as url
+from person.backlinks b
+left join person.contents c
+on b.backlink_url = c.content_url
+where c.content_url is null
+order by text desc
+
+
+

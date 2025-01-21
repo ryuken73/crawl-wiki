@@ -61,6 +61,16 @@ module.exports = {
     from person.contents c
     join person.backlinks b
     on c.content_url = b.backlink_url
+  `,
+  getAllContentsNBacklinks:`
+    select c.content_id as id, c.content_name as text, c.primary_category, c.content_url as url
+    from person.contents c
+    union
+    select b.backlink_id as id, b.backlink_text as text, '-' as primary_category, b.backlink_url as url
+    from person.backlinks b
+    left join person.contents c
+    on b.backlink_url = c.content_url
+    where c.content_url is null
+    order by text desc
   `
-
 }
