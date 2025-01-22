@@ -1,8 +1,9 @@
 const MiniSearch = require('minisearch');
+const hangul = require('hangul-js');
 
 const DEFAULT_SEARCH_OPTION = {
   prefix: true,
-  fuzzy: 0.3
+  // fuzzy: 0.3
 }
 
 const createSearchEngine = (options, searchOptions={}) => {
@@ -25,6 +26,7 @@ const createSearchEngine = (options, searchOptions={}) => {
   }
   const search = (keyword) => {
     const searchPattern = hangul.disassemble(keyword).join('')||MiniSearch.wildcard;
+    console.log(searchPattern)
     return searchEngine.search(searchPattern, mixedSearchOptions)
   }
   return {
