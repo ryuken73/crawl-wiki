@@ -15,7 +15,7 @@ const initializeSearchEngine = (fastify, options) => {
     }
   }
   const searchOptions = {
-    fields: ['text']
+    fields: ['textToIndex'],
   }
   const searchEngine = createSearchEngine(minisearchOpts, searchOptions);
   fastify.decorate('searchEngine', searchEngine);

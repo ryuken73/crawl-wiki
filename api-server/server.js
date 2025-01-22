@@ -61,6 +61,15 @@ fastify.get('/search/:keyword', (req, reply) => {
   const searchResult = fastify.searchEngine.search(req.params.keyword)
   console.log(searchResult)
 })
+fastify.get('/autoSuggest/:keyword', (req, reply) => {
+  console.log('autoSuggest ', req.params.keyword)
+  const autoSuggestOpts = {
+    fields: ['textToIndex'],
+    
+  }
+  const suggestResult = fastify.searchEngine.autoSuggest(req.params.keyword, autoSuggestOpts)
+  console.log(suggestResult)
+})
 
 fastify.listen({ port: 2025 }, err => {
   if (err) throw err
