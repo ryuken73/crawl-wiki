@@ -269,10 +269,12 @@ order by count desc
 --- * id는 contents라면 content_id, backlink라면 backlink_id 사용
 --- * text는 contents라면 content_name, backlink라면 backlink_text
 --- * primary_category는 contents는 그대로, backlink는 "-"
-select c.content_id as id, c.content_name as text, c.primary_category, c.content_url as url
+select c.content_id as id, c.content_name as text, c.primary_category, c.content_url as url, b.backlink_id as backlink_id
 from person.contents c
+join person.backlinks b
+on c.content_url = b.backlink_url
 union
-select b.backlink_id as id, b.backlink_text as text, '-' as primary_category, b.backlink_url as url
+select b.backlink_id as id, b.backlink_text as text, '-' as primary_category, b.backlink_url as url, b.backlink_id as backlink_id
 from person.backlinks b
 left join person.contents c
 on b.backlink_url = c.content_url
