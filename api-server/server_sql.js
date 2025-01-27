@@ -9,8 +9,8 @@ module.exports = {
     )
 
     SELECT b.backlink_id,
-          b.backlink_text, 
-          b.backlink_url,
+          b.backlink_text as node_text, 
+          b.backlink_url as node_url,
           COALESCE(bc.backlink_count, 0) AS backlink_count,
           bc.content_id,
           bc.primary_category,
@@ -36,8 +36,8 @@ module.exports = {
       on b.backlink_id = cb.backlink_id 
     ) 
     select b.backlink_id, 
-      b.backlink_text,
-    b.backlink_url,
+      b.backlink_text as node_text,
+    b.backlink_url as node_url,
     COALESCE(bc.backlink_count, 0) AS backlink_count,
     fc.content_id, 
     c.primary_category,
@@ -74,6 +74,81 @@ module.exports = {
     on b.backlink_url = c.content_url
     where c.content_url is null
     order by text desc
+  `,
+  getNodeByContentId:`
+    with forward_content as (
+      select b.backlink_id, b.backlink_text, b.backlink_url, cb.content_id
+      from person.backlinks b
+      join person.contents_backlinks cb
+      on b.backlink_id = cb.backlink_id 
+    )
 
+    select c.content_name as node_text,
+      c.content_url as node_url,
+      case when exists (
+        select 1 from person.backlinks b
+        where b.backlink_url = c.content_url
+      ) then (
+        select backlink_id from person.backlinks b
+        where b.backlink_url = c.content_url
+      ) else '-' end as backlink_id,
+      c.content_id,
+      c.primary_category,
+      bc.backlink_count,
+      (
+        select count(*) as forwardlink_count 
+        from forward_content fc 
+        where fc.backlink_url = c.content_url
+      )
+    from person.contents c
+    join person.backlink_count bc
+    on c.content_id = bc.content_id
+  `,
+  getNodeByBacklinkId:`
+    WITH backlink_counts AS (
+      SELECT cc.content_url, bc.content_id, cc.primary_category, 
+          bb.backlink_id,
+          COALESCE(bc.backlink_count, 0) AS backlink_count
+      FROM person.contents cc
+      LEFT JOIN person.backlink_count bc 
+      ON cc.content_id = bc.content_id
+      LEFT JOIN person.backlinks bb
+      on bb.backlink_url = cc.content_url
+    ), forward_content as (
+      select b.backlink_id, b.backlink_text, b.backlink_url, cb.content_id
+      from person.backlinks b
+      join person.contents_backlinks cb
+      on b.backlink_id = cb.backlink_id 
+    )
+
+    select 
+      b.backlink_text as node_text,
+      b.backlink_url as node_url,
+      b.backlink_id,
+      -- bc.backlink_count,
+      case when exists (
+        select 1 from person.contents c
+        where b.backlink_url = c.content_url
+      ) then (
+        select content_id from person.contents c
+        where b.backlink_url = c.content_url
+      ) else '-' end as content_id,
+      case when exists (
+        select 1 from person.contents c
+        where b.backlink_url = c.content_url
+      ) then (
+        select primary_category from person.contents c
+        where b.backlink_url = c.content_url
+      ) else '-' end as primary_category,
+      bc.backlink_count,
+      (select count(*) from forward_content fc
+      where fc.backlink_id = b.backlink_id)
+      
+    from person.backlinks b
+    join person.contents c
+    on b.backlink_url = c.content_url
+    join backlink_counts bc
+    on b.backlink_id = bc.backlink_id
   `
+
 }

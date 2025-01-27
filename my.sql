@@ -152,7 +152,7 @@ update person.backlinks b set forwardlink_count = (
 	where b.backlink_id = cb.backlink_id
 )
 
--- content_id from backlink_id
+-- content_id from backlink_id-
 select c.content_id
 from person.contents c
 join person.backlinks b
@@ -160,9 +160,9 @@ on c.content_url = b.backlink_url
 where b.backlink_id='1311'
 
 -- backlink_id from content_id
-select b.backlink_id
+select c.content_name, b.backlink_id
 from person.backlinks b
-join person.contents c
+right outer join person.contents c
 on c.content_url = b.backlink_url
 where c.content_id ='배우_한국_C_002147_김정현_1990년생'
 
@@ -281,5 +281,98 @@ on b.backlink_url = c.content_url
 where c.content_url is null
 order by text desc
 
+-- select node info by content_id
+-- return 
+-- node_text (== content_name)
+-- node_url (== content_url)
+-- backlink_id
+-- backlink_count
+-- content_id,
+-- primary_category
+-- forwardlink_count
 
+with forward_content as (
+  select b.backlink_id, b.backlink_text, b.backlink_url, cb.content_id
+  from person.backlinks b
+  join person.contents_backlinks cb
+  on b.backlink_id = cb.backlink_id 
+)
 
+select c.content_name as node_text,
+	c.content_url as node_url,
+	case when exists (
+		select 1 from person.backlinks b
+		where b.backlink_url = c.content_url
+	) then (
+		select backlink_id from person.backlinks b
+		where b.backlink_url = c.content_url
+	) else '-' end as backlink_id,
+	c.content_id,
+	c.primary_category,
+	bc.backlink_count,
+	(
+		select count(*) as forwardlink_count 
+		from forward_content fc 
+		where fc.backlink_url = c.content_url
+	)
+from person.contents c
+join person.backlink_count bc
+on c.content_id = bc.content_id
+where c.content_id = '정치인_한국_C_007373_윤석열'
+	
+
+-- select node info by backlink_id
+-- return 
+-- node_text (== baclink_text)
+-- node_url (== backlink_url)
+-- backlink_id
+-- backlink_count
+-- content_id,
+-- primary_category
+-- forwardlink_count
+
+WITH backlink_counts AS (
+	SELECT cc.content_url, bc.content_id, cc.primary_category, 
+		  bb.backlink_id,
+		  COALESCE(bc.backlink_count, 0) AS backlink_count
+	FROM person.contents cc
+	LEFT JOIN person.backlink_count bc 
+	ON cc.content_id = bc.content_id
+	LEFT JOIN person.backlinks bb
+	on bb.backlink_url = cc.content_url
+), forward_content as (
+  select b.backlink_id, b.backlink_text, b.backlink_url, cb.content_id
+  from person.backlinks b
+  join person.contents_backlinks cb
+  on b.backlink_id = cb.backlink_id 
+)
+
+select 
+	b.backlink_text as node_text,
+	b.backlink_url as node_url,
+	b.backlink_id,
+	-- bc.backlink_count,
+	case when exists (
+		select 1 from person.contents c
+		where b.backlink_url = c.content_url
+	) then (
+		select content_id from person.contents c
+		where b.backlink_url = c.content_url
+	) else '-' end as content_id,
+	case when exists (
+		select 1 from person.contents c
+		where b.backlink_url = c.content_url
+	) then (
+		select primary_category from person.contents c
+		where b.backlink_url = c.content_url
+	) else '-' end as primary_category,
+	bc.backlink_count,
+	(select count(*) from forward_content fc
+	 where fc.backlink_id = b.backlink_id)
+	
+from person.backlinks b
+join person.contents c
+on b.backlink_url = c.content_url
+join backlink_counts bc
+on b.backlink_id = bc.backlink_id
+where b.backlink_id='125604'

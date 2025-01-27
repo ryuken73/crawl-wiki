@@ -56,6 +56,20 @@ fastify.get('/contentId-backlinkId/:id', (req, reply) => {
     }
   )
 })
+fastify.get('/nodeByContentId/:id', (req, reply) => {
+  fastify.pg.wikiDB.query( `${sqls.getNodeByContentId} where c.content_id = $1`, [req.params.id],
+    function onResult (err, result) {
+      reply.send(err || result)
+    }
+  )
+})
+fastify.get('/nodeByBacklinkId/:id', (req, reply) => {
+  fastify.pg.wikiDB.query( `${sqls.getNodeByBacklinkId} where b.backlink_id = $1`, [req.params.id],
+    function onResult (err, result) {
+      reply.send(err || result)
+    }
+  )
+})
 fastify.get('/search/:keyword', (req, reply) => {
   console.log('searching ', req.params.keyword)
   const searchResult = fastify.searchEngine.search(req.params.keyword)
