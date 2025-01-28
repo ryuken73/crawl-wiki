@@ -63,12 +63,12 @@ module.exports = {
     on c.content_url = b.backlink_url
   `,
   getAllContentsNBacklinks:`
-    select c.content_id as id, c.content_name as text, c.primary_category, c.content_url as url, b.backlink_id as backlink_id
+    select c.content_id as id, c.content_name as text, c.primary_category, c.content_url as url, b.backlink_id as backlink_id, c.content_id
     from person.contents c
     join person.backlinks b
     on c.content_url = b.backlink_url
     union
-    select b.backlink_id as id, b.backlink_text as text, '-' as primary_category, b.backlink_url as url, b.backlink_id as backlink_id
+    select b.backlink_id as id, b.backlink_text as text, null as primary_category, b.backlink_url as url, b.backlink_id as backlink_id, null as content_id
     from person.backlinks b
     left join person.contents c
     on b.backlink_url = c.content_url
@@ -132,7 +132,7 @@ module.exports = {
       ) then (
         select content_id from person.contents c
         where b.backlink_url = c.content_url
-      ) else '-' end as content_id,
+      ) else null end as content_id,
       case when exists (
         select 1 from person.contents c
         where b.backlink_url = c.content_url
@@ -140,14 +140,14 @@ module.exports = {
         select primary_category from person.contents c
         where b.backlink_url = c.content_url
       ) else '-' end as primary_category,
-      bc.backlink_count,
+      COALESCE(bc.backlink_count, 0) as backlink_count,
       (select count(*) from forward_content fc
-      where fc.backlink_id = b.backlink_id)
+      where fc.backlink_id = b.backlink_id) as forwardlink_count
       
     from person.backlinks b
-    join person.contents c
+    left join person.contents c
     on b.backlink_url = c.content_url
-    join backlink_counts bc
+    left join backlink_counts bc
     on b.backlink_id = bc.backlink_id
   `
 

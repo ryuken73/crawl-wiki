@@ -64,7 +64,7 @@ fastify.get('/nodeByContentId/:id', (req, reply) => {
   )
 })
 fastify.get('/nodeByBacklinkId/:id', (req, reply) => {
-  fastify.pg.wikiDB.query( `${sqls.getNodeByBacklinkId} where b.backlink_id = $1`, [req.params.id],
+  fastify.pg.wikiDB.query( `${sqls.getNodeByBacklinkId} where b.backlink_id = $1`, [parseInt(req.params.id)],
     function onResult (err, result) {
       reply.send(err || result)
     }
