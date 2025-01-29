@@ -77,6 +77,20 @@ const CRAWL_START_URLS = [
     // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
     crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
   },
+  { // 축구선수  
+    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%9E%90%20%EC%B6%95%EA%B5%AC%20%EC%84%A0%EC%88%98',
+    personIdPrefix: '축구선수_한국',
+    personPageLinksRegExp: /.*/,
+    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    crawlCategory: WIKI_CATEGORY_IDS.CLASSES
+  },
+  { // 축구선수  
+    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%9E%90%20%EC%B6%95%EA%B5%AC%20%EC%84%A0%EC%88%98',
+    personIdPrefix: '축구선수_한국',
+    personPageLinksRegExp: /.*/,
+    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
+  },
 ]
 
 const getNextId = async (options) => {
