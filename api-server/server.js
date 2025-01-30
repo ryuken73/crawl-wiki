@@ -22,14 +22,14 @@ fastify.get('/backlinks/byContentName/:name', (req, reply) => {
   )
 })
 fastify.get('/backlinks/byContentId/:id', (req, reply) => {
-  fastify.pg.wikiDB.query( `${sqls.backlinks} WHERE c.content_id = $1`, [req.params.id],
+  fastify.pg.wikiDB.query( `${sqls.backlinksByContentId} WHERE cb.content_id = $1`, [req.params.id],
     function onResult (err, result) {
       reply.send(err || result)
     }
   )
 })
 fastify.get('/forwardlinks/byBacklinkId/:id', (req, reply) => {
-  fastify.pg.wikiDB.query( `${sqls.forwardlinks} WHERE fc.backlink_id = $1`, [req.params.id],
+  fastify.pg.wikiDB.query( `${sqls.forwardlinkByBacklinkId} WHERE b.backlink_id = $1`, [req.params.id],
     function onResult (err, result) {
       reply.send(err || result)
     }
@@ -57,14 +57,14 @@ fastify.get('/contentId-backlinkId/:id', (req, reply) => {
   )
 })
 fastify.get('/nodeByContentId/:id', (req, reply) => {
-  fastify.pg.wikiDB.query( `${sqls.getNodeByContentId} where c.content_id = $1`, [req.params.id],
+  fastify.pg.wikiDB.query( `${sqls.nodeByContentId} where c.content_id = $1`, [req.params.id],
     function onResult (err, result) {
       reply.send(err || result)
     }
   )
 })
 fastify.get('/nodeByBacklinkId/:id', (req, reply) => {
-  fastify.pg.wikiDB.query( `${sqls.getNodeByBacklinkId} where b.backlink_id = $1`, [parseInt(req.params.id)],
+  fastify.pg.wikiDB.query( `${sqls.nodeByBacklinkId} where b.backlink_id = $1`, [parseInt(req.params.id)],
     function onResult (err, result) {
       reply.send(err || result)
     }
@@ -90,7 +90,8 @@ fastify.listen({ port: 2025 }, err => {
   if (err) throw err
   console.log(`server listening on ${fastify.server.address().port}`);
   console.log(`get all documents to index searchEngine...wait..`);
-  fastify.pg.wikiDB.query(sqls.getAllContentsNBacklinks, [], 
+  // fastify.pg.wikiDB.query(sqls.getAllContentsNBacklinks, [], 
+  fastify.pg.wikiDB.query(sqls.allNodes, [], 
     async function onResult (err, result) {
       console.log('total count of documents=', result.rowCount);
       // const {addAllAsync, addDocument} = initializeSearchEngine();
