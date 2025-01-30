@@ -27,7 +27,10 @@ const subquery_for_node = `
     select 
       b.backlink_id,
       c.content_id,
-      b.backlink_text as node_text,
+      case when b.backlink_text is null then c.content_name
+        when c.content_name is null then b.backlink_text
+        else b.backlink_text
+      end as node_text,
       b.backlink_url as node_url,
       c.primary_category,
       c.additional_info_raw,
