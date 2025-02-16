@@ -1,7 +1,7 @@
 const fastify = require('fastify')();
 const cors = require('@fastify/cors');
 const sqls = require('./server_sql');
-const {DB_HOST, DB_NAME, DB_PASSWORD, DB_USER, DB_PORT} = process.env;
+const {DB_HOST, DB_NAME, DB_PASSWORD, DB_USER, DB_PORT, IMG_ROOT_PATH} = process.env;
 
 fastify.register(cors, {
   origin: "*",
@@ -84,6 +84,16 @@ fastify.get('/autoSuggest/:keyword', (req, reply) => {
   const suggestResult = fastify.searchEngine.autoSuggest(req.params.keyword, autoSuggestOpts)
   console.log(suggestResult)
   reply.send(suggestResult)
+})
+fastify.get('/imageByContentId/:id', (req, reply) => {
+  fastify.pg.wikiDB.query( `${sqls.getImageByContentId} where content_id = $1`, req.params.id,
+    function onResult (err, result) {
+      reply.send(err || result)
+    }
+  )
+})
+fastify.register(require('@fastify/static'), {
+  root: IMG_ROOT_PATH,
 })
 
 fastify.listen({ port: 2025 }, err => {

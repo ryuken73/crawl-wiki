@@ -201,6 +201,9 @@ module.exports = {
     join node n
     on n.backlink_id = b.backlink_id
   `,
+  getImageByContentId: `
+    select image_subdir, image_name from person.images 
+  `,
   getNodeByContentId:`
     with forward_content as (
       select b.backlink_id, b.backlink_text, b.backlink_url, cb.content_id

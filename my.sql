@@ -8,7 +8,7 @@ select content_id, content_name, additional_info_raw, additional_info from perso
 
 select to_tsvector('열혈사제2와 관련된 배우들')
 
-select * from person.contents where content_name = '유재석'
+select * from person.contents where content_name = '손흥민'
 
 select content_id,content_url from person.contents
 where content_id in (
@@ -133,7 +133,7 @@ on c.content_id = bc.content_id
 where bc.backlink_count is null
 
 
--- backlink별 역참조 카운트 조회 (live)
+-- backlink별 backlink 카운트 조회 (live)
 select  cb.backlink_id, b.backlink_text, count(1) as count 
 from person.contents_backlinks cb 
 join person.backlinks b
@@ -145,7 +145,7 @@ order by count desc
 select backlink_text, forwardlink_count from person.backlinks
 order by 2 desc
 
--- backlinks count update
+-- forwardlink_count update
 update person.backlinks b set forwardlink_count = (
 	select count(*) 
 	from person.contents_backlinks cb 
@@ -248,7 +248,9 @@ where c.content_id ='배우_한국_C_002147_김정현_1990년생'
 
 -- 1) forward link 가장 많이 가진 순서...
 select backlink_text, forwardlink_count 
-from person.backlinks order by forwardlink_count desc
+from person.backlinks 
+where forwardlink_count > 10
+order by forwardlink_count desc
 
 -- 2) contents_backlinks 테이블에서 backlink_id기준으로 backlink 갯수 조회
 --    이것은 각 backlink의 forward link 갯수와 같다.
@@ -258,7 +260,7 @@ from person.contents_backlinks cb
 join person.backlinks b
 on cb.backlink_id = b.backlink_id
 group by 1,2 
-having count(*) > 1000
+having count(*) > 10
 order by count desc
 
 
