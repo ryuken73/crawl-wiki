@@ -86,7 +86,7 @@ fastify.get('/autoSuggest/:keyword', (req, reply) => {
   reply.send(suggestResult)
 })
 fastify.get('/imageByContentId/:id', (req, reply) => {
-  fastify.pg.wikiDB.query( `${sqls.getImageByContentId} where content_id = $1`, req.params.id,
+  fastify.pg.wikiDB.query( `${sqls.getImageByContentId} where content_id = $1`, [req.params.id],
     function onResult (err, result) {
       reply.send(err || result)
     }
