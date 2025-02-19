@@ -48,6 +48,7 @@ const subquery_for_node = `
       bc.backlink_count as backlink_count,
       bc.backlink_count_from_content as backlink_count_from_content,
       b.forwardlink_count as forwardlink_count,
+      b.forwardlink_count as forwardlink_count_to_content,
       i.image_subdir,
       i.image_name
     from person.backlinks b

@@ -188,10 +188,6 @@ update person.backlink_count b set backlink_count_from_content = (
 		where cb.content_id = b.content_id
 ) 
 
-
-
-
-
 -- content_id from backlink_id-
 select c.content_id
 from person.contents c
