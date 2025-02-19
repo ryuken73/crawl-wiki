@@ -1,9 +1,13 @@
+const USE_LIVE_COUNT = false;
 const subquery_for_node_slow = `
   WITH node AS (
     select 
       b.backlink_id,
       c.content_id,
-      b.backlink_text as node_text,
+      case when b.backlink_text is null then c.content_name
+        when c.content_name is null then b.backlink_text
+        else b.backlink_text
+      end as node_text,
       b.backlink_url as node_url,
       c.primary_category,
       c.additional_info_raw,
@@ -11,6 +15,13 @@ const subquery_for_node_slow = `
       b.forwardlink_count as saved_forwardlink_count,
       (select count(*) from person.contents_backlinks cb where cb.content_id = c.content_id) as backlink_count,
       (select count(*) from person.contents_backlinks cb where cb.backlink_id = b.backlink_id) as forwardlink_count,
+      (select count(*) from person.contents_backlinks cb 
+	      join person.backlinks bb
+		    on cb.backlink_id = bb.backlink_id
+		    right join person.contents cc
+  	    on cc.content_url = bb.backlink_url
+		    where cb.content_id = c.content_id
+	    ) as backlink_count_from_content,
       i.image_subdir,
       i.image_name
     from person.backlinks b
@@ -35,6 +46,7 @@ const subquery_for_node = `
       c.primary_category,
       c.additional_info_raw,
       bc.backlink_count as backlink_count,
+      bc.backlink_count_from_content as backlink_count_from_content,
       b.forwardlink_count as forwardlink_count,
       i.image_subdir,
       i.image_name
@@ -47,9 +59,10 @@ const subquery_for_node = `
     on c.content_id = i.content_id
   )
 `
+const subquery = USE_LIVE_COUNT ? subquery_for_node_slow : subquery_for_node;
 module.exports = {
   backlinksByContentId: `
-    ${subquery_for_node}
+    ${subquery}
     select 
     n.* 
     from person.contents_backlinks cb
@@ -57,7 +70,7 @@ module.exports = {
     on cb.backlink_id = n.backlink_id
   `,
   backlinksByBacklinkId:`
-    ${subquery_for_node}
+    ${subquery}
 		select 
 		n.*
 		from person.backlinks b
@@ -69,7 +82,7 @@ module.exports = {
 		on cb.backlink_id = n.backlink_id
   `,
   forwardlinkByContentId:`
-    ${subquery_for_node}
+    ${subquery}
     select n.*
     from person.backlinks b
     join person.contents c
@@ -80,7 +93,7 @@ module.exports = {
     on n.content_id = cb.content_id
   `,
   forwardlinkByBacklinkId:`
-    ${subquery_for_node}
+    ${subquery}
     select n.*
     from person.backlinks b
     join person.contents_backlinks cb
@@ -188,14 +201,14 @@ module.exports = {
     order by text desc
   `,
   nodeByContentId:`
-    ${subquery_for_node}
+    ${subquery}
     select n.*
     from person.contents c
     join node n
     on n.content_id = c.content_id
   `,
   nodeByBacklinkId:`
-    ${subquery_for_node}
+    ${subquery}
     select n.*
     from person.backlinks b
     join node n

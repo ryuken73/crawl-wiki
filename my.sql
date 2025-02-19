@@ -133,7 +133,7 @@ on c.content_id = bc.content_id
 where bc.backlink_count is null
 
 
--- backlink별 backlink 카운트 조회 (live)
+-- backlink별 forwardlink 카운트 조회 (live)
 select  cb.backlink_id, b.backlink_text, count(1) as count 
 from person.contents_backlinks cb 
 join person.backlinks b
@@ -145,12 +145,52 @@ order by count desc
 select backlink_text, forwardlink_count from person.backlinks
 order by 2 desc
 
--- forwardlink_count update
-update person.backlinks b set forwardlink_count = (
-	select count(*) 
-	from person.contents_backlinks cb 
-	where b.backlink_id = cb.backlink_id
-)
+-- backlink별 backlinks 카운트 조회 (live)
+select b.backlink_text, c.content_id,
+ (select count(*) from person.contents_backlinks cb where cb.content_id = c.content_id) as backlink_count_live
+from person.backlinks b
+join person.contents c
+on b.backlink_url = c.content_url
+order by backlink_count_live desc
+
+-- backlink별 backlinks 카운트 조회 (집계)
+select b.backlink_text, c.content_id, b.backlink_id, backlink_count
+from person.backlinks b
+join person.contents c
+on b.backlink_url = c.content_url
+join person.backlink_count bc
+on c.content_id = bc.content_id
+order by backlink_count desc
+
+-- backlinks 카운츠 live & 집계
+select b.backlink_text, c.content_id, b.backlink_id, bc.backlink_count, bc.backlink_count_from_content,
+ (select count(*) from person.contents_backlinks cb where cb.content_id = c.content_id) as backlink_count_live,
+ (select count(*) from person.contents_backlinks cb 
+	join person.backlinks bb
+	on cb.backlink_id = bb.backlink_id
+	right join person.contents cc
+  	on cc.content_url = bb.backlink_url
+	where cb.content_id = c.content_id) as backlink_count_from_content_live
+from person.backlinks b
+join person.contents c
+on b.backlink_url = c.content_url
+join person.backlink_count bc
+on c.content_id = bc.content_id
+order by backlink_count desc
+
+-- * crawling 후 집계데이터 업데이트 필요 (backlink_count_from_content)
+update person.backlink_count b set backlink_count_from_content = (
+	select count(*) from person.contents_backlinks cb 
+		join person.backlinks bb
+		on cb.backlink_id = bb.backlink_id
+		right join person.contents cc
+	  	on cc.content_url = bb.backlink_url
+		where cb.content_id = b.content_id
+) 
+
+
+
+
 
 -- content_id from backlink_id-
 select c.content_id
@@ -262,6 +302,13 @@ on cb.backlink_id = b.backlink_id
 group by 1,2 
 having count(*) > 10
 order by count desc
+-- 3) forwardlink_count 업데이트 sql
+update person.backlinks b set forwardlink_count = (
+	select count(*) 
+	from person.contents_backlinks cb 
+	where b.backlink_id = cb.backlink_id
+)
+
 
 
 -- 검색엔진관련 Query
@@ -426,3 +473,9 @@ where b.backlink_id='125604'
     left join backlink_counts bc
     on b.backlink_id = bc.backlink_id
 	where b.backlink_id='124345'
+
+
+-- image path 구하기
+select image_subdir, image_name from person.images 
+where content_id = '정치인_한국_C_007373_윤석열'
+
