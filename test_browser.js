@@ -3,6 +3,7 @@ const {create, setLevel} = require('./lib/logger')();
 const createBrowser = require('./lib/browser');
 const fileUtil = require('./lib/util');
 const crawl_config = require('./crawl_config.json');
+const CRAWL_START_URLS = require('crawl_urls.js');
 const {
   dbGetNextSeqId,
   dbIsDuplicateRecord
@@ -34,102 +35,6 @@ const {
   wikiSaveImageMetaToFile
 } = fileUtil
 
-const CRAWL_START_URLS = [
-  {//0
-    startPageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
-    personIdPrefix: '배우_한국',
-    personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    // personPageLinksRegExp: /.*/, 
-    // personPageLinksRegExp: /공명/
-    // personPageLinksRegExp: /김기현/
-    // personPageLinksRegExp: /박수영/
-    // personPageLinksRegExp: /김용운/
-    // personPageLinksRegExp: /강승원/
-  },
-  {//1
-    startPageUrl: 'https://namu.wiki/w/%EA%B0%80%EC%88%98/%ED%95%9C%EA%B5%AD',
-    personIdPrefix: '가수_한국',
-    personPageLinksRegExp: /.*/, 
-
-  },
-  {//2
-    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%84%B1%20%EC%A0%95%EC%B9%98%EC%9D%B8',
-    personIdPrefix: '정치인_한국',
-    personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    crawlCategory: WIKI_CATEGORY_IDS.CLASSES
-  },
-  {//3
-    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%84%B1%20%EC%A0%95%EC%B9%98%EC%9D%B8',
-    personIdPrefix: '정치인_한국',
-    personPageLinksRegExp: /.*/,
-    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
-  },
-  { // 여성 4
-    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EC%97%AC%EC%84%B1%20%EC%A0%95%EC%B9%98%EC%9D%B8',
-    personIdPrefix: '정치인_한국',
-    personPageLinksRegExp: /.*/,
-    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    crawlCategory: WIKI_CATEGORY_IDS.CLASSES
-  },
-  { // 여성 5
-    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EC%97%AC%EC%84%B1%20%EC%A0%95%EC%B9%98%EC%9D%B8',
-    personIdPrefix: '정치인_한국',
-    personPageLinksRegExp: /.*/,
-    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
-  },
-  { // 축구선수  6 
-    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%9E%90%20%EC%B6%95%EA%B5%AC%20%EC%84%A0%EC%88%98',
-    personIdPrefix: '축구선수_한국',
-    personPageLinksRegExp: /.*/,
-    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    crawlCategory: WIKI_CATEGORY_IDS.CLASSES
-  },
-  { // 축구선수  7
-    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%9E%90%20%EC%B6%95%EA%B5%AC%20%EC%84%A0%EC%88%98',
-    personIdPrefix: '축구선수_한국',
-    personPageLinksRegExp: /.*/,
-    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
-  },
-  { // 언론인(남성) 8 
-    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%84%B1%20%EC%96%B8%EB%A1%A0%EC%9D%B8',
-    personIdPrefix: '언론인_한국',
-    personPageLinksRegExp: /.*/,
-    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    crawlCategory: WIKI_CATEGORY_IDS.CLASSES
-  },
-  { // 언론인(남성) 9 
-    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%84%B1%20%EC%96%B8%EB%A1%A0%EC%9D%B8',
-    personIdPrefix: '언론인_한국',
-    personPageLinksRegExp: /.*/,
-    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
-  },
-  { // 언론인(여성) 10 
-    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EC%97%AC%EC%84%B1%20%EC%96%B8%EB%A1%A0%EC%9D%B8',
-    personIdPrefix: '언론인_한국',
-    personPageLinksRegExp: /.*/,
-    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    crawlCategory: WIKI_CATEGORY_IDS.CLASSES
-  },
-  { // 언론인(여성)  11
-    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EC%97%AC%EC%84%B1%20%EC%96%B8%EB%A1%A0%EC%9D%B8',
-    personIdPrefix: '언론인_한국',
-    personPageLinksRegExp: /.*/,
-    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
-  },
-  { // 법조인  12
-    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%B2%95%EC%A1%B0%EC%9D%B8',
-    personIdPrefix: '법조인_한국',
-    personPageLinksRegExp: /.*/,
-    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
-    // crawlCategory: WIKI_CATEGORY_IDS.DOCUMENTS
-  },
-
-]
 
 const getNextId = async (options) => {
   try {
@@ -258,14 +163,15 @@ const processWikiList = async (browser, list, personIdPrefix, tempFolder, should
 
 let logger;
 
-async function main(crawlInfo) {
+async function main(crawlInfo, workFolder) {
   const {
     startPageUrl,
     personPageLinksRegExp,
     personIdPrefix,
     crawlCategory
   } = crawlInfo
-  let tempFolder = fileUtil.getDefaultTempFolder();
+  // let tempFolder = fileUtil.getDefaultTempFolder();
+  let tempFolder = workFolder;
 
   if(RUN_MODE !== 'TEMP'){
     try {
@@ -317,16 +223,29 @@ async function main(crawlInfo) {
   }
   // process.exit();
 }
-
-async function crawl(startIndex, endIndex){
+const categorys = [
+  WIKI_CATEGORY_IDS.CLASSES,
+  WIKI_CATEGORY_IDS.DOCUMENTS
+]
+async function crawl(startIndex, endIndex, workFolder){
   while(startIndex < endIndex){
-   await main(CRAWL_START_URLS[startIndex]);
-   console.log('done:', startIndex);
-   startIndex++
+    const crawlInfo = CRAWL_START_URLS[startIndex];
+    const {pageHasSubCategory} = crawlInfo;
+    if(pageHasSubCategory){
+      for(let category of categorys){
+        const withCategoryOption = {...crawlInfo, crawlCategory:category}
+        await main(withCategoryOption, workFolder)
+      }
+    } else {
+      await main(crawlInfo, workFolder);
+    }
+    console.log('done:', startIndex);
+    startIndex++
   }
 }
 
-crawl(2,6)
+let workFolder = fileUtil.getDefaultTempFolder();
+crawl(14,16, workFolder)
 // crawl(0, CRAWL_START_URLS.length);
 
 // let startIndex = 8;
