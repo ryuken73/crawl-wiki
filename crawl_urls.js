@@ -1,3 +1,7 @@
+const WIKI_CATEGORY_IDS = {
+  'DOCUMENTS': 'category-문서',
+  'CLASSES': 'category-분류',
+}
 module.exports = [
   {//0
     startPageUrl: 'https://namu.wiki/w/%EB%B0%B0%EC%9A%B0/%ED%95%9C%EA%B5%AD',
@@ -109,6 +113,20 @@ module.exports = [
   { // 유튜버  15(남)
     startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98%20%EB%82%A8%EC%84%B1%20%EC%9C%A0%ED%8A%9C%EB%B2%84',
     personIdPrefix: '유튜버_한국',
+    personPageLinksRegExp: /.*/,
+    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    pageHasSubCategory: true
+  },
+  { // 코미디언  16(남)
+    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%ED%95%9C%EA%B5%AD%20%EB%82%A8%EC%84%B1%20%EC%BD%94%EB%AF%B8%EB%94%94%EC%96%B8',
+    personIdPrefix: '코미디언_한국',
+    personPageLinksRegExp: /.*/,
+    // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
+    pageHasSubCategory: true
+  },
+  { // 코미디언  17(여)
+    startPageUrl: 'https://namu.wiki/w/%EB%B6%84%EB%A5%98:%ED%95%9C%EA%B5%AD%20%EC%97%AC%EC%84%B1%20%EC%BD%94%EB%AF%B8%EB%94%94%EC%96%B8',
+    personIdPrefix: '코미디언_한국',
     personPageLinksRegExp: /.*/,
     // personPageLinksRegExp: /(^[가-힣]{2,4}$)|([가-힣]{2,4} - .*$)/,
     pageHasSubCategory: true

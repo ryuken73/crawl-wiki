@@ -3,7 +3,7 @@ const {create, setLevel} = require('./lib/logger')();
 const createBrowser = require('./lib/browser');
 const fileUtil = require('./lib/util');
 const crawl_config = require('./crawl_config.json');
-const CRAWL_START_URLS = require('crawl_urls.js');
+const CRAWL_START_URLS = require('./crawl_urls.js');
 const {
   dbGetNextSeqId,
   dbIsDuplicateRecord
@@ -245,7 +245,7 @@ async function crawl(startIndex, endIndex, workFolder){
 }
 
 let workFolder = fileUtil.getDefaultTempFolder();
-crawl(14,16, workFolder)
+crawl(16,18, workFolder)
 // crawl(0, CRAWL_START_URLS.length);
 
 // let startIndex = 8;
