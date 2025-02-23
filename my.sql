@@ -2,7 +2,7 @@
 
 select primary_category, count(*) from person.contents group by 1;
 
-SELECT * FROM person.backlink_count order by backlink_count desc;
+SELECT *, backlink_count - backlink_count_from_content FROM person.backlink_count order by backlink_count_from_content desc;
 
 select content_id, content_name, additional_info_raw, additional_info from person.contents
 

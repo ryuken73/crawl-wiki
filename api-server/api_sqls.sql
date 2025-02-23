@@ -13,11 +13,11 @@ WITH node AS (
 		c.additional_info_raw,
 		bc.backlink_count as saved_backlink_count,
 		b.forwardlink_count as saved_forwardlink_count,
-		(select count(*) from person.contents_backlinks cb where cb.content_id = c.content_id)
+		(select count(*) from person.contents_backlinks cb where cb.content_id = c.content_id) as backlink_count
 	from person.backlinks b
 	full outer join person.contents c
 	on c.content_url = b.backlink_url
-	left join person.backlink_count bc as backlink_count,
+	left join person.backlink_count bc 
 		(select count(*) from person.contents_backlinks cb where cb.backlink_id = b.backlink_id) as forwardlink_count,
 		i.image_subdir,
 		i.image_name

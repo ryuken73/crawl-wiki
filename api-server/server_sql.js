@@ -62,6 +62,7 @@ const subquery_for_node = `
 `
 const subquery = USE_LIVE_COUNT ? subquery_for_node_slow : subquery_for_node;
 module.exports = {
+  subquery,
   backlinksByContentId: `
     ${subquery}
     select 

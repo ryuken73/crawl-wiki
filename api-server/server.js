@@ -92,6 +92,43 @@ fastify.get('/imageByContentId/:id', (req, reply) => {
     }
   )
 })
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // 특수문자 앞에 백슬래시 추가
+}
+const subquery = sqls.subquery;
+const safeSubquery = escapeRegExp(sqls.subquery);
+const sqlSubQuery = new RegExp(`${safeSubquery}([\\s\\S]*)`);
+const LINK_GET_SQLS = {
+  'backlink': {
+    'byContentId': `${sqls.backlinksByContentId} where cb.content_id = $`,
+    'byBacklinkId': `${sqls.backlinksByBacklinkId} where b.backlink_id = $`,
+  },
+  'forwardlink': {
+    'byContentId': `${sqls.forwardlinkByContentId} where n.content_id = $`,
+    'byBacklinkId': `${sqls.forwardlinkByBacklinkId} where b.backlink_id =$`,
+  }
+}
+fastify.post('/related/:linkType', (req, reply) => {
+  const linkType = req.params.linkType;
+  const nodes = JSON.parse(req.body);
+  const params = [];
+  const sqls = nodes.map((node, index) => {
+    const {content_id, backlink_id} = node;
+    const byWhat = content_id ? 'byContentId':'byBacklinkId';
+    const sql = `${LINK_GET_SQLS[linkType][byWhat]}${index+1}\n`;
+    const sqlWithoutSubquery = sql.match(sqlSubQuery)[1];
+    content_id ? params.push(content_id) : params.push(backlink_id);
+    return `(${sqlWithoutSubquery})`
+  })
+  const sql = subquery + '\n' + sqls.join(' intersect ')
+  fastify.pg.wikiDB.query( sql, params,
+    function onResult (err, result) {
+      reply.send(err || result)
+    }
+  )
+})
+
 fastify.register(require('@fastify/static'), {
   root: IMG_ROOT_PATH,
 })
